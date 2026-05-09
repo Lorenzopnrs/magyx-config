@@ -2046,13 +2046,11 @@ function renderBATIllustration(W, H) {
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
 
-  // Two slippers side by side. With wider egg proportions (halfW = 0.55*halfH),
-  // each slipper takes ~halfH * 1.10 of horizontal space.
-  const halfH = H * 0.42;
-  const slipperWidth = halfH * 0.55 * 2; // full width of one slipper
-  // Center each slipper at 1/4 and 3/4 of the canvas width with a small gap.
-  const cx1 = W * 0.5 - slipperWidth * 0.55;
-  const cx2 = W * 0.5 + slipperWidth * 0.55;
+  // Two slippers side by side, calibrated for the Le Moulin BAT layout.
+  const halfH = H * 0.43;
+  const slipperWidth = halfH * 0.45 * 2;
+  const cx1 = W * 0.5 - slipperWidth * 0.65;
+  const cx2 = W * 0.5 + slipperWidth * 0.65;
   drawSlipper2D(ctx, cx1, H / 2, halfH, false, currentModel === 'ouverte');
   drawSlipper2D(ctx, cx2, H / 2, halfH, true,  currentModel === 'ouverte');
 
@@ -2068,9 +2066,9 @@ function drawSlipper2D(ctx, cx, cy, halfH, mirror, openToe) {
   ctx.translate(cx, cy);
   if (mirror) ctx.scale(-1, 1);
 
-  const halfW = halfH * 0.55;             // wider proportions like the reference
-  const pipingW = halfH * 0.04;            // outer piping band thickness
-  const heelPipingW = halfH * 0.035;      // slightly thinner inner heel rim
+  const halfW = halfH * 0.45;             // matches Le Moulin BAT proportions
+  const pipingW = halfH * 0.045;           // outer piping band thickness
+  const heelPipingW = halfH * 0.040;      // slightly thinner inner heel rim
 
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
@@ -2096,13 +2094,12 @@ function drawSlipper2D(ctx, cx, cy, halfH, mirror, openToe) {
   ctx.lineWidth = pipingW;
   ctx.stroke();
 
-  // === 3. HEEL OPENING (U-shape) ===
-  // Front of opening at y = halfH * 0.05 (just past mid-foot toward heel)
-  // Back of opening at y = halfH * 0.78 (close to heel)
-  const openFY = halfH * 0.06;
-  const openBY = halfH * 0.78;
-  const openFW = halfW * 0.40;
-  const openBW = halfW * 0.55;
+  // === 3. HEEL OPENING (U-shape) — calibrated to match Le Moulin BAT ===
+  // Front of opening just below mid-foot, back of opening near heel
+  const openFY = halfH * 0.10;
+  const openBY = halfH * 0.82;
+  const openFW = halfW * 0.42;
+  const openBW = halfW * 0.62;
 
   function pathHeelOpening() {
     ctx.beginPath();
@@ -2212,33 +2209,37 @@ function drawSlipper2D(ctx, cx, cy, halfH, mirror, openToe) {
   ctx.restore();
 }
 
-// Bezier path matching the Le Moulin reference BAT — a rounded egg
-// shape with smooth toe and heel curves, almost symmetric, slight
-// inner-side bulge at the ball of the foot.
+// Slipper outline traced from the Le Moulin reference BAT — symmetric
+// egg silhouette with 6 bezier segments hitting the key anchors:
+// rounded heel, smooth side, widest at mid, toe approach, rounded toe,
+// then the mirror on the other side. Very minor inner bulge.
 function pathSlipperOutline(ctx, halfW, halfH, widen) {
   widen = widen || 1.0;
   const W = halfW * widen, H = halfH * widen;
   ctx.beginPath();
-  // HEEL center back (+Y)
-  ctx.moveTo(0, H);
-  // ── OUTER (left) heel → toe ──
-  ctx.bezierCurveTo(-W * 0.58,  H * 1.04,    // rounded heel arc
-                    -W * 0.90,  H * 0.78,
-                    -W * 0.96,  H * 0.30);
-  ctx.bezierCurveTo(-W * 1.00, -H * 0.25,    // widest point (mid-foot)
-                    -W * 0.86, -H * 0.78,
-                    -W * 0.42, -H * 1.00);
-  // Rounded toe
-  ctx.bezierCurveTo(-W * 0.20, -H * 1.05,
-                     W * 0.20, -H * 1.05,
-                     W * 0.42, -H * 1.00);
-  // ── INNER (right) toe → heel — slight bulge ──
-  ctx.bezierCurveTo( W * 0.88, -H * 0.78,
-                     W * 1.04, -H * 0.20,    // small bulge at the ball
-                     W * 1.02,  H * 0.30);
-  ctx.bezierCurveTo( W * 0.90,  H * 0.78,
-                     W * 0.58,  H * 1.04,
-                     0, H);
+  ctx.moveTo(0, H); // heel center back
+
+  // OUTER side (left) — 3 segments: heel-arc → side → toe-arc
+  ctx.bezierCurveTo(-W * 0.45,  H * 1.00,
+                    -W * 0.86,  H * 0.92,
+                    -W * 0.96,  H * 0.62);
+  ctx.bezierCurveTo(-W * 1.00,  H * 0.28,
+                    -W * 1.00, -H * 0.28,
+                    -W * 0.96, -H * 0.62);
+  ctx.bezierCurveTo(-W * 0.86, -H * 0.92,
+                    -W * 0.45, -H * 1.00,
+                     0,        -H);
+
+  // INNER side (right) — mirror with slight bulge at mid-foot
+  ctx.bezierCurveTo( W * 0.45, -H * 1.00,
+                     W * 0.86, -H * 0.92,
+                     W * 0.98, -H * 0.62);
+  ctx.bezierCurveTo( W * 1.04, -H * 0.28,    // small bulge inside
+                     W * 1.04,  H * 0.28,
+                     W * 0.98,  H * 0.62);
+  ctx.bezierCurveTo( W * 0.86,  H * 0.92,
+                     W * 0.45,  H * 1.00,
+                     0,         H);
   ctx.closePath();
 }
 
