@@ -2054,93 +2054,109 @@ function renderBATIllustration(W, H) {
   return c.toDataURL('image/png');
 }
 
-// Draw a single slipper top-down at (cx, cy), with `halfH` half-length.
-// `mirror=true` flips horizontally (right foot). `openToe=true` draws
-// the open-toe variant.
+// Draw a single slipper top-down at (cx, cy). `halfH` = half-length.
+// `mirror=true` flips horizontally (right foot). `openToe=true` adds
+// a toe opening for the open-toe model.
 function drawSlipper2D(ctx, cx, cy, halfH, mirror, openToe) {
   ctx.save();
   ctx.translate(cx, cy);
   if (mirror) ctx.scale(-1, 1);
 
-  const halfW = halfH * 0.42;
-  const pipingThickness = halfH * 0.022;
+  const halfW = halfH * 0.40;
+  const pipingThick = halfH * 0.030;
 
-  // === Outer outline (piping color, filled) ===
-  pathSlipperOutline(ctx, halfW, halfH);
-  ctx.fillStyle = state.pipingColor;
-  ctx.fill();
-
-  // Soft drop shadow under the slipper for depth
+  // === Soft drop shadow under the entire slipper ===
   ctx.save();
-  ctx.shadowColor = 'rgba(0,0,0,0.10)';
-  ctx.shadowBlur = halfH * 0.08;
-  ctx.shadowOffsetY = halfH * 0.03;
+  ctx.shadowColor = 'rgba(0,0,0,0.16)';
+  ctx.shadowBlur = halfH * 0.10;
+  ctx.shadowOffsetY = halfH * 0.05;
   pathSlipperOutline(ctx, halfW, halfH);
-  ctx.fillStyle = state.pipingColor;
+  ctx.fillStyle = '#FFFFFF';
   ctx.fill();
   ctx.restore();
 
-  // === Inset path: fabric body ===
-  pathSlipperOutline(ctx, halfW - pipingThickness, halfH - pipingThickness, 1.0);
-  ctx.fillStyle = state.fabricColor;
+  // === 1. Outer piping band (full slipper outline filled with piping color) ===
+  pathSlipperOutline(ctx, halfW, halfH);
+  ctx.fillStyle = state.pipingColor;
   ctx.fill();
 
-  // === Heel opening (back of upper) — visible interior in fabric color, slightly darker for depth ===
-  // The heel opening starts at ~y=halfH*0.20 and goes back to y≈halfH*0.95
+  // === 2. Sole / insole color (slightly inset from the piping) ===
+  // This represents the visible "inside" of the slipper through the heel
+  // opening AND under the front upper if open-toe.
+  pathSlipperOutline(ctx, halfW - pipingThick, halfH - pipingThick * 1.05, 1);
+  ctx.fillStyle = state.soleColor === '#FFFFFF' ? '#F5F0EB' : adjustHexLightness(state.soleColor, 0.10);
+  ctx.fill();
+
+  // === 3. The UPPER vamp covering the front 60-65% of the slipper ===
+  // Drawn as a closed shape that overlays the toe and front area, leaving
+  // the heel area visible (which shows the insole color).
   ctx.save();
   ctx.beginPath();
-  // U-curve: enter from one side, sweep around the back, exit other side
-  const openY = halfH * 0.20;
-  const backY = halfH * 0.92;
-  const openWHalf = halfW * 0.55;
-  const backWHalf = halfW * 0.78;
-  ctx.moveTo(-openWHalf, openY);
-  // smooth curve toward the back
-  ctx.bezierCurveTo(-openWHalf - halfW * 0.08, openY + halfH * 0.20, -backWHalf, backY - halfH * 0.30, -backWHalf * 0.6, backY);
-  ctx.bezierCurveTo(-backWHalf * 0.2,  backY + halfH * 0.04,  backWHalf * 0.2,  backY + halfH * 0.04, backWHalf * 0.6, backY);
-  ctx.bezierCurveTo( backWHalf, backY - halfH * 0.30, openWHalf + halfW * 0.08, openY + halfH * 0.20, openWHalf, openY);
-  // close at front of opening
-  ctx.bezierCurveTo(openWHalf * 0.6, openY - halfH * 0.04, -openWHalf * 0.6, openY - halfH * 0.04, -openWHalf, openY);
+  const inset = pipingThick * 0.6;
+  const W2 = halfW - inset, H2 = halfH - inset;
+  // Vamp covers from toe down to roughly y = +0.10*H (just past mid-foot)
+  // Bottom edge of vamp = U-shaped opening curve
+  // Outer side (left) toe → mid
+  ctx.moveTo(-W2 * 0.62, -H2 * 0.82);
+  ctx.bezierCurveTo(-W2 * 0.32, -H2 * 1.00,
+                     W2 * 0.32, -H2 * 1.00,
+                     W2 * 0.62, -H2 * 0.82);
+  ctx.bezierCurveTo( W2 * 0.95, -H2 * 0.45,
+                     W2 * 1.04,  H2 * 0.00,
+                     W2 * 1.00,  H2 * 0.30);
+  // U-shape edge of the upper (heel opening front edge)
+  // Right side coming back toward center
+  ctx.bezierCurveTo( W2 * 0.85,  H2 * 0.10,
+                     W2 * 0.55,  H2 * 0.08,
+                     W2 * 0.30,  H2 * 0.18);
+  ctx.bezierCurveTo( W2 * 0.10,  H2 * 0.28,
+                    -W2 * 0.10,  H2 * 0.28,
+                    -W2 * 0.30,  H2 * 0.18);
+  ctx.bezierCurveTo(-W2 * 0.55,  H2 * 0.08,
+                    -W2 * 0.85,  H2 * 0.10,
+                    -W2 * 1.00,  H2 * 0.30);
+  // Back up the outer side to the toe approach
+  ctx.bezierCurveTo(-W2 * 1.04,  H2 * 0.00,
+                    -W2 * 0.95, -H2 * 0.45,
+                    -W2 * 0.62, -H2 * 0.82);
   ctx.closePath();
-  // Fabric color slightly darkened to suggest a recessed surface
-  ctx.fillStyle = adjustHexLightness(state.fabricColor, -0.10);
+  ctx.fillStyle = state.fabricColor;
   ctx.fill();
-  // Inner stitch line
-  ctx.strokeStyle = adjustHexLightness(state.fabricColor, -0.25);
-  ctx.lineWidth = halfH * 0.004;
+  // Subtle inner stitch line where the upper meets the insole
+  ctx.strokeStyle = adjustHexLightness(state.pipingColor, -0.15);
+  ctx.lineWidth = halfH * 0.003;
   ctx.stroke();
   ctx.restore();
 
-  // === For OPEN-TOE variant, draw a curved opening at the toe area ===
+  // === 4. For OPEN-TOE variant, cut a small opening at the toe ===
   if (openToe) {
     ctx.save();
     ctx.beginPath();
-    const toeY = -halfH * 0.55;
-    const toeWHalf = halfW * 0.40;
-    ctx.moveTo(-toeWHalf, toeY);
-    ctx.bezierCurveTo(-toeWHalf, toeY - halfH * 0.18, toeWHalf, toeY - halfH * 0.18, toeWHalf, toeY);
-    ctx.bezierCurveTo(toeWHalf * 0.6, toeY + halfH * 0.06, -toeWHalf * 0.6, toeY + halfH * 0.06, -toeWHalf, toeY);
+    const toeY = -halfH * 0.62;
+    const tW = halfW * 0.32;
+    ctx.moveTo(-tW, toeY);
+    ctx.bezierCurveTo(-tW, toeY - halfH * 0.18, tW, toeY - halfH * 0.18, tW, toeY);
+    ctx.bezierCurveTo(tW * 0.5, toeY + halfH * 0.06, -tW * 0.5, toeY + halfH * 0.06, -tW, toeY);
     ctx.closePath();
-    ctx.fillStyle = adjustHexLightness(state.fabricColor, -0.10);
+    ctx.fillStyle = state.soleColor === '#FFFFFF' ? '#F5F0EB' : adjustHexLightness(state.soleColor, 0.10);
     ctx.fill();
     ctx.restore();
   }
 
-  // === Logo on the upper (centered above heel opening) ===
+  // === 5. Logo on the upper, centered on the front-mid of the vamp ===
   if (state.logo.image) {
     const im = state.logo.image;
-    const maxLogoW = halfW * 1.4;
+    // Logo placed at ~30% from toe (visible printable area on the vamp)
+    const logoY = -halfH * 0.30;
+    const maxLogoW = halfW * 1.35;
     const maxLogoH = halfH * 0.45;
     const ratio = im.width / im.height;
     let lw, lh;
     if (ratio >= 1) { lw = Math.min(maxLogoW, maxLogoH * ratio); lh = lw / ratio; }
     else            { lh = Math.min(maxLogoH, maxLogoW / ratio); lw = lh * ratio; }
-    // Logo center placed roughly at the front of the upper (around y = -halfH*0.20)
-    const logoY = -halfH * 0.20;
+    // Un-mirror the logo on the right slipper so it reads correctly
     if (mirror) {
-      // Un-mirror just for the logo so it reads correctly on the right slipper
-      ctx.save();
-      ctx.scale(-1, 1);
+      ctx.save(); ctx.scale(-1, 1);
       ctx.drawImage(im, -lw / 2, logoY - lh / 2, lw, lh);
       ctx.restore();
     } else {
@@ -2148,7 +2164,7 @@ function drawSlipper2D(ctx, cx, cy, halfH, mirror, openToe) {
     }
   }
 
-  // === Text (thermo / embroidery) below the logo ===
+  // === 6. Text (thermo / embroidery) ===
   if (state.text.value && state.text.value.trim()) {
     const tY = -halfH * 0.05;
     const baseSize = halfH * 0.10;
@@ -2156,41 +2172,51 @@ function drawSlipper2D(ctx, cx, cy, halfH, mirror, openToe) {
     if (state.text.font === 'serif')        font = `700 ${baseSize}px "Playfair Display", Georgia, serif`;
     else if (state.text.font === 'script')  font = `italic 700 ${baseSize}px "Brush Script MT", cursive`;
     else                                     font = `700 ${baseSize}px "Inter", sans-serif`;
-    if (mirror) {
-      ctx.save();
-      ctx.scale(-1, 1);
+    const drawText = () => {
       ctx.font = font;
       ctx.fillStyle = state.text.color;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(state.text.value, 0, tY);
-      ctx.restore();
-    } else {
-      ctx.font = font;
-      ctx.fillStyle = state.text.color;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(state.text.value, 0, tY);
-    }
+    };
+    if (mirror) { ctx.save(); ctx.scale(-1, 1); drawText(); ctx.restore(); }
+    else        { drawText(); }
   }
 
   ctx.restore();
 }
 
-// Bezier path for a closed-toe mule silhouette (top-down).
-// `widen` slightly inflates/deflates the shape for inset offsets.
+// Bezier path for a closed-toe hotel mule silhouette (top-down) —
+// matches the proportions of a real product BAT: pointed-rounded toe,
+// wider mid-foot, rounded heel.
 function pathSlipperOutline(ctx, halfW, halfH, widen) {
   widen = widen || 1.0;
   const W = halfW * widen, H = halfH * widen;
   ctx.beginPath();
-  // Start at heel center back (positive Y in our local frame = toward back)
+  // HEEL CENTER (back, +Y in local frame)
   ctx.moveTo(0, H);
-  // Outer side (left of slipper): heel → toe
-  ctx.bezierCurveTo(-W * 0.78, H * 0.97, -W * 1.02, H * 0.55, -W * 1.00, H * 0.05);
-  ctx.bezierCurveTo(-W * 0.99, -H * 0.45, -W * 0.55, -H * 0.97,  0, -H);
-  // Inner side (right): toe → heel, with slight bulge
-  ctx.bezierCurveTo( W * 0.55, -H * 0.97,  W * 1.06, -H * 0.45,  W * 1.06, H * 0.10);
-  ctx.bezierCurveTo( W * 1.00, H * 0.65,  W * 0.78, H * 0.97,  0, H);
+  // ── OUTER side (left) heel → toe ──
+  // 1) Heel curve out
+  ctx.bezierCurveTo(-W * 0.55, H * 1.02,
+                    -W * 0.92, H * 0.78,
+                    -W * 0.98, H * 0.40);
+  // 2) Mid-foot (widest) → toe approach
+  ctx.bezierCurveTo(-W * 1.02, H * 0.00,
+                    -W * 0.95, -H * 0.45,
+                    -W * 0.62, -H * 0.82);
+  // 3) Rounded toe
+  ctx.bezierCurveTo(-W * 0.32, -H * 1.00,
+                     W * 0.32, -H * 1.00,
+                     W * 0.62, -H * 0.82);
+  // ── INNER side (right) toe → heel ──
+  // 4) Toe approach
+  ctx.bezierCurveTo( W * 0.95, -H * 0.45,
+                     W * 1.05,  H * 0.00,
+                     W * 1.02,  H * 0.40);
+  // 5) Heel curve back
+  ctx.bezierCurveTo( W * 0.92,  H * 0.78,
+                     W * 0.55,  H * 1.02,
+                     0, H);
   ctx.closePath();
 }
 
@@ -2342,33 +2368,40 @@ function generateBAT() {
     pdf.text(hexToCmykLabel(s.hex), swX + 8, yy + 4);
   });
 
-  // ================ FOOTER (Date | Signature | Stamp) ================
-  const footY = PH - 36;
-  pdf.setLineDashPattern([1.2, 1.2], 0);
-  pdf.line(M, footY, PW - M, footY);
-  pdf.setLineDashPattern([], 0);
+  // ================ FOOTER ================
+  // Layout (top → bottom):
+  //   1. Customer info block (3 lines, top of footer area)
+  //   2. Dashed separator line
+  //   3. Three signature columns: Date | Signature | Stamp
+  //   4. Italic column labels at the very bottom
+  // Spacing carefully tuned so the date stamp NEVER overlaps the email.
 
-  // Customer name + company (bottom block info)
-  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9); pdf.setTextColor(80);
-  let infoY = footY + 5;
-  if (state.signature.customer.name)    { pdf.text(state.signature.customer.name,    M, infoY);     }
-  if (state.signature.customer.company) { pdf.text(state.signature.customer.company, M, infoY + 4); }
-  if (state.signature.customer.email)   { pdf.text(state.signature.customer.email,   M, infoY + 8); }
-  pdf.setTextColor(0);
-
-  // Three columns at the very bottom
-  const bottomY = PH - M;
+  const customerBlockY = PH - 50;     // top of customer info block
+  const separatorY     = PH - 28;     // dashed line
+  const bottomY        = PH - M;      // italic labels Y
   const colDateX = PW * 0.18;
   const colSigX  = PW * 0.50;
   const colStpX  = PW * 0.82;
 
-  // Filled date (above the column label)
-  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10);
-  pdf.text(dateFr, colDateX, bottomY - 8, { align: 'center' });
+  // Customer info block
+  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9); pdf.setTextColor(80);
+  if (state.signature.customer.name)    { pdf.text(state.signature.customer.name,    M, customerBlockY);     }
+  if (state.signature.customer.company) { pdf.text(state.signature.customer.company, M, customerBlockY + 4); }
+  if (state.signature.customer.email)   { pdf.text(state.signature.customer.email,   M, customerBlockY + 8); }
+  pdf.setTextColor(0);
 
-  // Signature image
+  // Dashed separator BELOW the customer block
+  pdf.setLineDashPattern([1.2, 1.2], 0);
+  pdf.line(M, separatorY, PW - M, separatorY);
+  pdf.setLineDashPattern([], 0);
+
+  // Filled date in the Date column (between separator and bottom labels)
+  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10);
+  pdf.text(dateFr, colDateX, separatorY + 7, { align: 'center' });
+
+  // Signature image — placed between separator and bottom labels, in the Signature column
   if (sigPng) {
-    try { pdf.addImage(sigPng, 'PNG', colSigX - 22, bottomY - 18, 44, 14); } catch (_) {}
+    try { pdf.addImage(sigPng, 'PNG', colSigX - 22, separatorY + 1, 44, 11); } catch (_) {}
   }
 
   // Column labels (italic, like the reference)
