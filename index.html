@@ -2046,115 +2046,140 @@ function renderBATIllustration(W, H) {
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
 
-  // Two slippers side by side. Available height drives slipper size.
+  // Two slippers side by side. With wider egg proportions (halfW = 0.55*halfH),
+  // each slipper takes ~halfH * 1.10 of horizontal space.
   const halfH = H * 0.42;
-  drawSlipper2D(ctx, W * 0.27, H / 2, halfH, false, currentModel === 'ouverte');
-  drawSlipper2D(ctx, W * 0.73, H / 2, halfH, true,  currentModel === 'ouverte');
+  const slipperWidth = halfH * 0.55 * 2; // full width of one slipper
+  // Center each slipper at 1/4 and 3/4 of the canvas width with a small gap.
+  const cx1 = W * 0.5 - slipperWidth * 0.55;
+  const cx2 = W * 0.5 + slipperWidth * 0.55;
+  drawSlipper2D(ctx, cx1, H / 2, halfH, false, currentModel === 'ouverte');
+  drawSlipper2D(ctx, cx2, H / 2, halfH, true,  currentModel === 'ouverte');
 
   return c.toDataURL('image/png');
 }
 
-// Draw a single slipper top-down at (cx, cy). `halfH` = half-length.
-// `mirror=true` flips horizontally (right foot). `openToe=true` adds
-// a toe opening for the open-toe model.
+// Draw a single slipper top-down. Faithful reproduction of the Le Moulin
+// reference BAT: rounded egg silhouette, fabric body, piping band that
+// wraps the entire OUTLINE *and* the heel-opening U as a continuous
+// border, logo centered on the upper vamp.
 function drawSlipper2D(ctx, cx, cy, halfH, mirror, openToe) {
   ctx.save();
   ctx.translate(cx, cy);
   if (mirror) ctx.scale(-1, 1);
 
-  const halfW = halfH * 0.40;
-  const pipingThick = halfH * 0.030;
+  const halfW = halfH * 0.55;             // wider proportions like the reference
+  const pipingW = halfH * 0.04;            // outer piping band thickness
+  const heelPipingW = halfH * 0.035;      // slightly thinner inner heel rim
 
-  // === Soft drop shadow under the entire slipper ===
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+
+  // === Drop shadow under the slipper ===
   ctx.save();
-  ctx.shadowColor = 'rgba(0,0,0,0.16)';
-  ctx.shadowBlur = halfH * 0.10;
-  ctx.shadowOffsetY = halfH * 0.05;
+  ctx.shadowColor = 'rgba(0,0,0,0.18)';
+  ctx.shadowBlur = halfH * 0.09;
+  ctx.shadowOffsetY = halfH * 0.04;
   pathSlipperOutline(ctx, halfW, halfH);
   ctx.fillStyle = '#FFFFFF';
   ctx.fill();
   ctx.restore();
 
-  // === 1. Outer piping band (full slipper outline filled with piping color) ===
+  // === 1. Body filled with FABRIC color ===
   pathSlipperOutline(ctx, halfW, halfH);
-  ctx.fillStyle = state.pipingColor;
-  ctx.fill();
-
-  // === 2. Sole / insole color (slightly inset from the piping) ===
-  // This represents the visible "inside" of the slipper through the heel
-  // opening AND under the front upper if open-toe.
-  pathSlipperOutline(ctx, halfW - pipingThick, halfH - pipingThick * 1.05, 1);
-  ctx.fillStyle = state.soleColor === '#FFFFFF' ? '#F5F0EB' : adjustHexLightness(state.soleColor, 0.10);
-  ctx.fill();
-
-  // === 3. The UPPER vamp covering the front 60-65% of the slipper ===
-  // Drawn as a closed shape that overlays the toe and front area, leaving
-  // the heel area visible (which shows the insole color).
-  ctx.save();
-  ctx.beginPath();
-  const inset = pipingThick * 0.6;
-  const W2 = halfW - inset, H2 = halfH - inset;
-  // Vamp covers from toe down to roughly y = +0.10*H (just past mid-foot)
-  // Bottom edge of vamp = U-shaped opening curve
-  // Outer side (left) toe → mid
-  ctx.moveTo(-W2 * 0.62, -H2 * 0.82);
-  ctx.bezierCurveTo(-W2 * 0.32, -H2 * 1.00,
-                     W2 * 0.32, -H2 * 1.00,
-                     W2 * 0.62, -H2 * 0.82);
-  ctx.bezierCurveTo( W2 * 0.95, -H2 * 0.45,
-                     W2 * 1.04,  H2 * 0.00,
-                     W2 * 1.00,  H2 * 0.30);
-  // U-shape edge of the upper (heel opening front edge)
-  // Right side coming back toward center
-  ctx.bezierCurveTo( W2 * 0.85,  H2 * 0.10,
-                     W2 * 0.55,  H2 * 0.08,
-                     W2 * 0.30,  H2 * 0.18);
-  ctx.bezierCurveTo( W2 * 0.10,  H2 * 0.28,
-                    -W2 * 0.10,  H2 * 0.28,
-                    -W2 * 0.30,  H2 * 0.18);
-  ctx.bezierCurveTo(-W2 * 0.55,  H2 * 0.08,
-                    -W2 * 0.85,  H2 * 0.10,
-                    -W2 * 1.00,  H2 * 0.30);
-  // Back up the outer side to the toe approach
-  ctx.bezierCurveTo(-W2 * 1.04,  H2 * 0.00,
-                    -W2 * 0.95, -H2 * 0.45,
-                    -W2 * 0.62, -H2 * 0.82);
-  ctx.closePath();
   ctx.fillStyle = state.fabricColor;
   ctx.fill();
-  // Subtle inner stitch line where the upper meets the insole
-  ctx.strokeStyle = adjustHexLightness(state.pipingColor, -0.15);
-  ctx.lineWidth = halfH * 0.003;
+
+  // === 2. OUTER PIPING — thick stroke around the slipper outline ===
+  pathSlipperOutline(ctx, halfW - pipingW * 0.5, halfH - pipingW * 0.5);
+  ctx.strokeStyle = state.pipingColor;
+  ctx.lineWidth = pipingW;
   ctx.stroke();
+
+  // === 3. HEEL OPENING (U-shape) ===
+  // Front of opening at y = halfH * 0.05 (just past mid-foot toward heel)
+  // Back of opening at y = halfH * 0.78 (close to heel)
+  const openFY = halfH * 0.06;
+  const openBY = halfH * 0.78;
+  const openFW = halfW * 0.40;
+  const openBW = halfW * 0.55;
+
+  function pathHeelOpening() {
+    ctx.beginPath();
+    // Start at front-left of opening
+    ctx.moveTo(-openFW, openFY);
+    // Left side curve down to back
+    ctx.bezierCurveTo(-openFW - halfW * 0.04, openFY + halfH * 0.18,
+                      -openBW,                openBY - halfH * 0.28,
+                      -openBW * 0.55,         openBY);
+    // Back curve (rounded heel inside)
+    ctx.bezierCurveTo(-openBW * 0.20,         openBY + halfH * 0.04,
+                       openBW * 0.20,         openBY + halfH * 0.04,
+                       openBW * 0.55,         openBY);
+    // Right side curve back to front
+    ctx.bezierCurveTo( openBW,                openBY - halfH * 0.28,
+                       openFW + halfW * 0.04, openFY + halfH * 0.18,
+                       openFW,                openFY);
+    // Front edge (smooth U closure)
+    ctx.bezierCurveTo( openFW * 0.45, openFY - halfH * 0.05,
+                      -openFW * 0.45, openFY - halfH * 0.05,
+                      -openFW,        openFY);
+    ctx.closePath();
+  }
+
+  // Fill the heel opening with sole/insole color (slightly tinted for depth)
+  pathHeelOpening();
+  ctx.fillStyle = state.soleColor === '#FFFFFF' ? '#F2EDE2' : adjustHexLightness(state.soleColor, 0.20);
+  ctx.fill();
+
+  // Inner shadow at the very back of the opening (suggests depth)
+  ctx.save();
+  pathHeelOpening();
+  ctx.clip();
+  const grad = ctx.createLinearGradient(0, openFY, 0, openBY + halfH * 0.10);
+  grad.addColorStop(0, 'rgba(0,0,0,0)');
+  grad.addColorStop(0.7, 'rgba(0,0,0,0)');
+  grad.addColorStop(1, 'rgba(0,0,0,0.18)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(-halfW * 1.5, -halfH * 1.2, halfW * 3, halfH * 2.5);
   ctx.restore();
 
-  // === 4. For OPEN-TOE variant, cut a small opening at the toe ===
+  // === 4. INNER HEEL PIPING — stroke the U edge with the same piping color ===
+  pathHeelOpening();
+  ctx.strokeStyle = state.pipingColor;
+  ctx.lineWidth = heelPipingW;
+  ctx.stroke();
+
+  // === 5. OPEN-TOE: extra opening at the toe ===
   if (openToe) {
     ctx.save();
     ctx.beginPath();
-    const toeY = -halfH * 0.62;
-    const tW = halfW * 0.32;
-    ctx.moveTo(-tW, toeY);
-    ctx.bezierCurveTo(-tW, toeY - halfH * 0.18, tW, toeY - halfH * 0.18, tW, toeY);
-    ctx.bezierCurveTo(tW * 0.5, toeY + halfH * 0.06, -tW * 0.5, toeY + halfH * 0.06, -tW, toeY);
+    const tY = -halfH * 0.60;
+    const tW = halfW * 0.30;
+    ctx.moveTo(-tW, tY);
+    ctx.bezierCurveTo(-tW, tY - halfH * 0.20, tW, tY - halfH * 0.20, tW, tY);
+    ctx.bezierCurveTo(tW * 0.5, tY + halfH * 0.06, -tW * 0.5, tY + halfH * 0.06, -tW, tY);
     ctx.closePath();
-    ctx.fillStyle = state.soleColor === '#FFFFFF' ? '#F5F0EB' : adjustHexLightness(state.soleColor, 0.10);
+    ctx.fillStyle = state.soleColor === '#FFFFFF' ? '#F2EDE2' : adjustHexLightness(state.soleColor, 0.20);
     ctx.fill();
+    ctx.strokeStyle = state.pipingColor;
+    ctx.lineWidth = heelPipingW;
+    ctx.stroke();
     ctx.restore();
   }
 
-  // === 5. Logo on the upper, centered on the front-mid of the vamp ===
+  // === 6. Logo centered on the upper vamp (front area) ===
   if (state.logo.image) {
     const im = state.logo.image;
-    // Logo placed at ~30% from toe (visible printable area on the vamp)
-    const logoY = -halfH * 0.30;
-    const maxLogoW = halfW * 1.35;
-    const maxLogoH = halfH * 0.45;
+    // Centre vertically on the upper (between toe and front of opening)
+    const upperCenterY = (-halfH + openFY) / 2; // mid-point of the visible vamp
+    const logoY = upperCenterY;
+    const maxLogoW = halfW * 1.20;
+    const maxLogoH = halfH * 0.55;
     const ratio = im.width / im.height;
     let lw, lh;
     if (ratio >= 1) { lw = Math.min(maxLogoW, maxLogoH * ratio); lh = lw / ratio; }
     else            { lh = Math.min(maxLogoH, maxLogoW / ratio); lw = lh * ratio; }
-    // Un-mirror the logo on the right slipper so it reads correctly
     if (mirror) {
       ctx.save(); ctx.scale(-1, 1);
       ctx.drawImage(im, -lw / 2, logoY - lh / 2, lw, lh);
@@ -2164,9 +2189,10 @@ function drawSlipper2D(ctx, cx, cy, halfH, mirror, openToe) {
     }
   }
 
-  // === 6. Text (thermo / embroidery) ===
+  // === 7. Text (thermo / embroidery) BELOW the logo ===
   if (state.text.value && state.text.value.trim()) {
-    const tY = -halfH * 0.05;
+    const upperCenterY = (-halfH + openFY) / 2;
+    const tY = upperCenterY + halfH * 0.30;
     const baseSize = halfH * 0.10;
     let font;
     if (state.text.font === 'serif')        font = `700 ${baseSize}px "Playfair Display", Georgia, serif`;
@@ -2186,36 +2212,32 @@ function drawSlipper2D(ctx, cx, cy, halfH, mirror, openToe) {
   ctx.restore();
 }
 
-// Bezier path for a closed-toe hotel mule silhouette (top-down) —
-// matches the proportions of a real product BAT: pointed-rounded toe,
-// wider mid-foot, rounded heel.
+// Bezier path matching the Le Moulin reference BAT — a rounded egg
+// shape with smooth toe and heel curves, almost symmetric, slight
+// inner-side bulge at the ball of the foot.
 function pathSlipperOutline(ctx, halfW, halfH, widen) {
   widen = widen || 1.0;
   const W = halfW * widen, H = halfH * widen;
   ctx.beginPath();
-  // HEEL CENTER (back, +Y in local frame)
+  // HEEL center back (+Y)
   ctx.moveTo(0, H);
-  // ── OUTER side (left) heel → toe ──
-  // 1) Heel curve out
-  ctx.bezierCurveTo(-W * 0.55, H * 1.02,
-                    -W * 0.92, H * 0.78,
-                    -W * 0.98, H * 0.40);
-  // 2) Mid-foot (widest) → toe approach
-  ctx.bezierCurveTo(-W * 1.02, H * 0.00,
-                    -W * 0.95, -H * 0.45,
-                    -W * 0.62, -H * 0.82);
-  // 3) Rounded toe
-  ctx.bezierCurveTo(-W * 0.32, -H * 1.00,
-                     W * 0.32, -H * 1.00,
-                     W * 0.62, -H * 0.82);
-  // ── INNER side (right) toe → heel ──
-  // 4) Toe approach
-  ctx.bezierCurveTo( W * 0.95, -H * 0.45,
-                     W * 1.05,  H * 0.00,
-                     W * 1.02,  H * 0.40);
-  // 5) Heel curve back
-  ctx.bezierCurveTo( W * 0.92,  H * 0.78,
-                     W * 0.55,  H * 1.02,
+  // ── OUTER (left) heel → toe ──
+  ctx.bezierCurveTo(-W * 0.58,  H * 1.04,    // rounded heel arc
+                    -W * 0.90,  H * 0.78,
+                    -W * 0.96,  H * 0.30);
+  ctx.bezierCurveTo(-W * 1.00, -H * 0.25,    // widest point (mid-foot)
+                    -W * 0.86, -H * 0.78,
+                    -W * 0.42, -H * 1.00);
+  // Rounded toe
+  ctx.bezierCurveTo(-W * 0.20, -H * 1.05,
+                     W * 0.20, -H * 1.05,
+                     W * 0.42, -H * 1.00);
+  // ── INNER (right) toe → heel — slight bulge ──
+  ctx.bezierCurveTo( W * 0.88, -H * 0.78,
+                     W * 1.04, -H * 0.20,    // small bulge at the ball
+                     W * 1.02,  H * 0.30);
+  ctx.bezierCurveTo( W * 0.90,  H * 0.78,
+                     W * 0.58,  H * 1.04,
                      0, H);
   ctx.closePath();
 }
