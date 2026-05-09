@@ -2238,8 +2238,9 @@ const SIZE_LABELS = {
 
 function generateBAT() {
   const status = document.getElementById('sig-status');
-  if (status) { status.style.color = 'var(--accent)'; status.textContent = '… Capture du visuel 3D'; }
-  const snapshot = captureTopDownSnapshot(1600);
+  if (status) { status.style.color = 'var(--accent)'; status.textContent = '… Génération du schéma 2D'; }
+  // 2D vector-style illustration of the slipper pair (matches a traditional BAT).
+  const snapshot = renderBATIllustration(1600, 1100);
 
   if (status) status.textContent = '… Génération du PDF';
   const sigPng = getActiveSignaturePng();
@@ -2280,7 +2281,7 @@ function generateBAT() {
   // ================ CENTER SNAPSHOT ================
   const snapY = M + 35;
   const snapW = PW - 2 * M;
-  const snapH = snapW / 1.6;
+  const snapH = snapW / (1600 / 1100); // matches renderBATIllustration aspect
   pdf.addImage(snapshot, 'PNG', M, snapY, snapW, snapH);
 
   // Dashed separator
