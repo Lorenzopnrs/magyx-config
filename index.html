@@ -776,8 +776,10 @@ scene.add(slipper);
 // =====================================================================
 
 const MODELS = {
-  fermee:  { url: 'pantoufle-fermee.glb',  group: null, slot: null },
-  ouverte: { url: 'pantoufle-ouverte.glb', group: null, slot: null }
+  fermee:        { url: 'pantoufle-fermee.glb',  group: null, slot: null, isRight: false },
+  ouverte:       { url: 'pantoufle-ouverte.glb', group: null, slot: null, isRight: false },
+  fermee_right:  { url: 'ds_right.glb',          group: null, slot: null, isRight: true  },
+  ouverte_right: { url: 'otds_right.glb',        group: null, slot: null, isRight: true  }
 };
 let currentModel = 'fermee';
 
@@ -988,8 +990,8 @@ function buildSoleMask(slot, group) {
   return cctx.getImageData(0, 0, W, H);
 }
 
-function redrawSlipperTexture() {
-  const slot = MODELS[currentModel] && MODELS[currentModel].slot;
+function redrawSlipperTextureForKey(key) {
+  const slot = MODELS[key] && MODELS[key].slot;
   if (!slot) return;
   const { ctx, baseImageData, W, H, dynamicTex } = slot;
   const fabric = new THREE.Color(state.fabricColor);
@@ -1002,7 +1004,6 @@ function redrawSlipperTexture() {
   const sr = sole.r,   sg = sole.g,   sb = sole.b;
 
   for (let i = 0; i < src.length; i += 4) {
-    // mask[i] in 0..255: 0 = upper (apply fabric color), 255 = sole (apply sole color)
     const m = mask ? mask.data[i] / 255 : 0;
     const cR = fr * (1 - m) + sr * m;
     const cG = fg * (1 - m) + sg * m;
@@ -1014,6 +1015,12 @@ function redrawSlipperTexture() {
   }
   ctx.putImageData(out, 0, 0);
   dynamicTex.needsUpdate = true;
+}
+
+// Recolor ALL loaded models (left + right) with the same fabric/sole colors,
+// so the BAT pair always shows the same customization on both slippers.
+function redrawSlipperTexture() {
+  Object.keys(MODELS).forEach(k => redrawSlipperTextureForKey(k));
 }
 
 // =====================================================================
@@ -1411,12 +1418,17 @@ document.querySelectorAll('#model-toggle button').forEach(b => {
   b.addEventListener('click', () => setActiveModel(b.dataset.model));
 });
 
+// Load the 2 LEFT slippers first (interactive view ready quickly).
+// The 2 RIGHT slippers load in the background and are used only for the BAT.
 Promise.all([loadModel('fermee'), loadModel('ouverte')]).then(() => {
   buildProceduralPiping('fermee');
   buildProceduralPiping('ouverte');
   setActiveModel('fermee');
   document.getElementById('model-loader').classList.add('hide');
   document.getElementById('loader').classList.add('hide');
+  // Lazy-load the right slippers — used in the BAT only
+  loadModel('fermee_right').then(() => buildProceduralPiping('fermee_right')).catch(() => {});
+  loadModel('ouverte_right').then(() => buildProceduralPiping('ouverte_right')).catch(() => {});
 }).catch((err) => {
   console.error('Erreur de chargement GLB:', err);
   document.getElementById('model-loader').innerHTML =
@@ -2364,10 +2376,15 @@ const SIZE_LABELS = {
   oneSize: { fr: 'One Size', sole: '29 cm' }
 };
 
-// Capture a top-down product shot of the slipper and compose TWO copies
-// side by side (the classic BAT layout — pair of slippers viewed from above).
-// Returns a Promise that resolves to a dataURL.
-function captureHeroSnapshot() {
+// Capture a true LEFT+RIGHT pair top-down by positioning both GLB groups
+// side by side in the scene. Each slipper has its own logo + text decals
+// (built on demand for the right). Falls back to mirrored-single if the
+// right GLB isn't loaded yet.
+async function captureHeroSnapshot() {
+  const leftKey  = currentModel;
+  const rightKey = currentModel + '_right';
+  const rightLoaded = MODELS[rightKey] && MODELS[rightKey].group;
+
   const savedPos = camera.position.clone();
   const savedAspect = camera.aspect;
   const savedRotX = slipper.rotation.x;
@@ -2375,26 +2392,58 @@ function captureHeroSnapshot() {
   const oldW = renderer.domElement.width;
   const oldH = renderer.domElement.height;
 
-  // 100% top-down view: camera directly above, looking straight down.
-  // Slipper rotation reset so toe points to -Z (which maps to TOP of image
-  // because the tiny Z offset on the camera tilts it that way).
+  // Save left group position/visibility
+  const leftGroup = MODELS[leftKey].group;
+  const leftSavedPos = leftGroup.position.clone();
+  const leftSavedVis = leftGroup.visible;
+  const leftPipingVis = pipingGroups[leftKey] ? pipingGroups[leftKey].visible : false;
+
+  let rightGroup, rightSavedPos, rightSavedVis, rightPipingVis;
+  if (rightLoaded) {
+    rightGroup = MODELS[rightKey].group;
+    rightSavedPos = rightGroup.position.clone();
+    rightSavedVis = rightGroup.visible;
+    rightPipingVis = pipingGroups[rightKey] ? pipingGroups[rightKey].visible : false;
+  }
+
+  // Top-down view, slipper container not rotated
   slipper.rotation.set(0, 0, 0);
-  camera.position.set(0, 6.5, 0.001);
+  slipper.updateMatrixWorld(true);
+
+  // Reapply texture redraw so both lefts and rights match current state
+  redrawSlipperTexture();
+
+  // Position left and right side by side
+  const xOffset = 1.6;
+  if (rightLoaded) {
+    leftGroup.position.x = leftSavedPos.x - xOffset;
+    rightGroup.position.x = rightSavedPos.x + xOffset;
+    leftGroup.visible = true;
+    rightGroup.visible = true;
+    if (pipingGroups[leftKey])  pipingGroups[leftKey].visible = true;
+    if (pipingGroups[rightKey]) pipingGroups[rightKey].visible = true;
+
+    // Build right-side decals so the logo/text appear on the right slipper too
+    buildDecalForRightModel(logoSlot, state.logo.x, state.logo.y, state.logo.rotation, state.logo.scale);
+    buildDecalForRightModel(textSlot, state.text.x, state.text.y, state.text.rotation, state.text.scale * 0.85);
+  }
+
+  // Camera looks straight down to capture both slippers
+  camera.position.set(0, 9.5, 0.001);
   camera.lookAt(0, 0.95, 0);
 
-  // Each slipper rendered with enough padding around it
-  const singleW = 520;
-  const singleH = 620;
-  renderer.setSize(singleW, singleH, false);
-  camera.aspect = singleW / singleH;
+  // Wide landscape aspect for the pair
+  const w = 1600, h = 900;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
   camera.updateProjectionMatrix();
 
   renderer.setClearColor(0xffffff, 1);
   renderer.render(scene, camera);
-  const singleDataUrl = renderer.domElement.toDataURL('image/png');
+  const dataUrl = renderer.domElement.toDataURL('image/png');
   renderer.setClearColor(0x000000, 0);
 
-  // Restore everything
+  // === Restore everything ===
   renderer.setSize(oldW, oldH, false);
   camera.aspect = savedAspect;
   camera.updateProjectionMatrix();
@@ -2403,26 +2452,104 @@ function captureHeroSnapshot() {
   slipper.rotation.x = savedRotX;
   slipper.rotation.y = savedRotY;
 
-  // Compose the pair image
-  return new Promise((resolve) => {
-    const im = new Image();
-    im.onload = () => {
-      const gap = 60;
-      const pairW = singleW * 2 + gap;
-      const pairH = singleH;
-      const pc = document.createElement('canvas');
-      pc.width = pairW; pc.height = pairH;
-      const pctx = pc.getContext('2d');
-      pctx.fillStyle = '#FFFFFF';
-      pctx.fillRect(0, 0, pairW, pairH);
-      // Left slipper (as-is) — logo/text orientation preserved
-      pctx.drawImage(im, 0, 0);
-      // Right slipper (same orientation, beside it)
-      pctx.drawImage(im, singleW + gap, 0);
-      resolve(pc.toDataURL('image/png'));
-    };
-    im.src = singleDataUrl;
-  });
+  leftGroup.position.copy(leftSavedPos);
+  leftGroup.visible = leftSavedVis;
+  if (pipingGroups[leftKey]) pipingGroups[leftKey].visible = leftPipingVis;
+
+  if (rightLoaded) {
+    rightGroup.position.copy(rightSavedPos);
+    rightGroup.visible = rightSavedVis;
+    if (pipingGroups[rightKey]) pipingGroups[rightKey].visible = rightPipingVis;
+    // Remove the right-side decals (kept only for the snapshot)
+    removeDecalForKey(logoSlot, rightKey);
+    removeDecalForKey(textSlot, rightKey);
+  }
+
+  // If right isn't loaded yet, compose a mirrored fallback from the single render
+  if (!rightLoaded) {
+    return new Promise((resolve) => {
+      const im = new Image();
+      im.onload = () => {
+        const pc = document.createElement('canvas');
+        pc.width = w; pc.height = h;
+        const pctx = pc.getContext('2d');
+        pctx.fillStyle = '#FFFFFF';
+        pctx.fillRect(0, 0, w, h);
+        // Single slipper centered; mirror copy beside
+        pctx.drawImage(im, 0, 0);
+        resolve(pc.toDataURL('image/png'));
+      };
+      im.src = dataUrl;
+    });
+  }
+
+  return dataUrl;
+}
+
+// Build a decal on the RIGHT-side mesh using current logo/text state.
+function buildDecalForRightModel(decalSlot, padX, padY, rotationDeg, scale) {
+  const rightKey = currentModel + '_right';
+  if (!MODELS[rightKey] || !MODELS[rightKey].slot) return;
+
+  // Temporary save: rebuildDecalFor uses currentModel — swap it briefly
+  const savedCurrent = currentModel;
+  currentModel = rightKey;
+
+  // Save slipper rotation since rebuildDecalFor relies on identity
+  const sx = slipper.rotation.x, sy = slipper.rotation.y;
+  slipper.rotation.set(0, 0, 0);
+  slipper.updateMatrixWorld(true);
+
+  // Inline rebuild (without restoring slipper rotation immediately)
+  const slot = MODELS[rightKey].slot;
+  if (decalSlot.meshes[rightKey]) {
+    slipper.remove(decalSlot.meshes[rightKey]);
+    decalSlot.meshes[rightKey].geometry.dispose();
+    decalSlot.meshes[rightKey] = null;
+  }
+
+  const group = MODELS[rightKey].group;
+  const bbox = new THREE.Box3().setFromObject(group);
+  const size = bbox.getSize(new THREE.Vector3());
+  const longAxis  = size.z >= size.x ? 'z' : 'x';
+  const longSize  = size[longAxis];
+  const shortSize = size[longAxis === 'z' ? 'x' : 'z'];
+  const vampCx = MODELS[rightKey].vampCenterX;
+  const vampCz = MODELS[rightKey].vampCenterZ;
+
+  const longHalfRange = longSize  * 0.45;
+  const latHalfRange  = shortSize * 0.45;
+  const longOff = (padX - 0.5) * 2 * longHalfRange;
+  const latOff  = (padY - 0.5) * 2 * latHalfRange;
+
+  const projectionPos = new THREE.Vector3();
+  if (longAxis === 'z') projectionPos.set(vampCx + latOff,  bbox.max.y + size.y, vampCz + longOff);
+  else                  projectionPos.set(vampCx + longOff, bbox.max.y + size.y, vampCz + latOff);
+
+  const orientation = new THREE.Euler(-Math.PI / 2, 0, rotationDeg * Math.PI / 180);
+  const base = Math.min(shortSize, longSize) * 0.55 * scale;
+  const decalSize = new THREE.Vector3(base, base, size.y * 3.0);
+
+  try {
+    const geo = new THREE.DecalGeometry(slot.mesh, projectionPos, orientation, decalSize);
+    const mesh = new THREE.Mesh(geo, decalSlot.mat);
+    mesh.renderOrder = 5;
+    slipper.add(mesh);
+    decalSlot.meshes[rightKey] = mesh;
+  } catch (e) { /* decal may fail if logo position is outside mesh — silent */ }
+
+  // Restore
+  slipper.rotation.x = sx;
+  slipper.rotation.y = sy;
+  currentModel = savedCurrent;
+}
+
+function removeDecalForKey(decalSlot, key) {
+  if (decalSlot.meshes[key]) {
+    slipper.remove(decalSlot.meshes[key]);
+    decalSlot.meshes[key].geometry.dispose();
+    decalSlot.meshes[key] = null;
+  }
 }
 
 async function generateBAT() {
@@ -2489,8 +2616,8 @@ async function generateBAT() {
   // ─────────────────────────────────────────────────────────────
   const heroY = 38;
   const heroW = PW - 2 * M;
-  // singleW=520 x2 + gap 60 = 1100;  singleH=620  →  aspect 1.77
-  const heroH = heroW / 1.77;
+  // captureHeroSnapshot renders at 1600 × 900 → aspect 1.78
+  const heroH = heroW / 1.78;
   pdf.addImage(snapshot, 'PNG', M, heroY, heroW, heroH);
 
   // Caption below the image
@@ -2578,21 +2705,21 @@ async function generateBAT() {
   const colGap = 6;
   const colW = (innerW - 2 * colGap) / 3;
 
+  // Dynamically compute the tallest column so the next section starts
+  // BELOW all groups (avoids any overlap with the Validation block).
+  let maxGroupBottomY = sectionY;
   groups.forEach((g, i) => {
     const x = M + i * (colW + colGap);
     let y = sectionY;
 
-    // Group header in accent color
     pdf.setFont('helvetica', 'bold'); pdf.setFontSize(7.5);
     pdf.setTextColor(ACCENT.r, ACCENT.g, ACCENT.b);
     pdf.text(g.title, x, y);
-    // Underline
     pdf.setDrawColor(ACCENT.r, ACCENT.g, ACCENT.b);
     pdf.setLineWidth(0.4);
     pdf.line(x, y + 1.5, x + 12, y + 1.5);
     y += 7;
 
-    // Rows
     g.rows.forEach(([k, v]) => {
       pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7);
       pdf.setTextColor(TEXT_LIGHT);
@@ -2603,16 +2730,16 @@ async function generateBAT() {
       pdf.text(wrapped, x, y + 4.5);
       y += 4.5 + 4.5 * wrapped.length + 2.5;
     });
+
+    if (y > maxGroupBottomY) maxGroupBottomY = y;
   });
-
-  // Compute max group height so the next section starts below all groups
-  const maxRows = Math.max(...groups.map(g => g.rows.length));
-  sectionY += 7 + (4.5 + 4.5 + 2.5) * maxRows + 6;
+  sectionY = maxGroupBottomY + 6;
 
   // ─────────────────────────────────────────────────────────────
-  // VALIDATION BLOCK (bottom) — signature + customer info side-by-side
+  // VALIDATION BLOCK — placed dynamically AFTER specs, never before
+  // PH - 60 (so there's always room for the footer block + signature box).
   // ─────────────────────────────────────────────────────────────
-  const valY = PH - 60;
+  const valY = Math.min(Math.max(sectionY + 2, PH - 60), PH - 50);
   drawSectionTitle(pdf, M, PW, valY, 'VALIDATION & ACCORD', ACCENT);
 
   // Left: customer info
