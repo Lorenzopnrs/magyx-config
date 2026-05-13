@@ -2364,11 +2364,49 @@ const SIZE_LABELS = {
   oneSize: { fr: 'One Size', sole: '29 cm' }
 };
 
+// Capture a polished 3D hero render of the customer's slipper at a
+// curated cinematic 3/4 angle for the PDF cover.
+function captureHeroSnapshot(targetPx) {
+  targetPx = targetPx || 1800;
+  const savedPos = camera.position.clone();
+  const savedAspect = camera.aspect;
+  const savedRotX = slipper.rotation.x;
+  const savedRotY = slipper.rotation.y;
+  const oldW = renderer.domElement.width;
+  const oldH = renderer.domElement.height;
+
+  // 3/4 hero angle, looking slightly down — flattering product-shot pose
+  slipper.rotation.set(0.12, -0.55, 0);
+  camera.position.set(0, 2.6, 5.6);
+  camera.lookAt(0, 0.95, 0);
+
+  const aspect = 1.55;
+  const w = targetPx;
+  const h = Math.round(targetPx / aspect);
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+
+  renderer.setClearColor(0xffffff, 1);
+  renderer.render(scene, camera);
+  const dataUrl = renderer.domElement.toDataURL('image/png');
+  renderer.setClearColor(0x000000, 0);
+
+  renderer.setSize(oldW, oldH, false);
+  camera.aspect = savedAspect;
+  camera.updateProjectionMatrix();
+  camera.position.copy(savedPos);
+  camera.lookAt(0, 0.95, 0);
+  slipper.rotation.x = savedRotX;
+  slipper.rotation.y = savedRotY;
+  return dataUrl;
+}
+
 function generateBAT() {
   const status = document.getElementById('sig-status');
-  if (status) { status.style.color = 'var(--accent)'; status.textContent = '… Génération du schéma 2D'; }
-  // 2D vector-style illustration of the slipper pair (matches a traditional BAT).
-  const snapshot = renderBATIllustration(1600, 1100);
+  if (status) { status.style.color = 'var(--accent)'; status.textContent = '… Génération du visuel produit'; }
+  // Hero 3D render of the customer's actual custom slipper
+  const snapshot = captureHeroSnapshot(1800);
 
   if (status) status.textContent = '… Génération du PDF';
   const sigPng = getActiveSignaturePng();
@@ -2382,136 +2420,205 @@ function generateBAT() {
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
   const PW = 210, PH = 297;
-  const M = 14;
+  const M = 16;
 
-  // ================ HEADER ================
-  // Customer logo (top-left)
-  if (state.logo.image && state.logo.image.toDataURL) {
-    try { pdf.addImage(state.logo.image.toDataURL('image/png'), 'PNG', M, M, 30, 30); } catch (_) {}
-  } else if (state.logo.image && state.logo.image.src) {
-    try { pdf.addImage(state.logo.image.src, 'PNG', M, M, 30, 30); } catch (_) {}
-  }
+  // Brand color (MAGYX olive)
+  const ACCENT = { r: 122, g: 154, b: 58 };
+  const TEXT_DARK = 28;       // near-black
+  const TEXT_MED  = 95;
+  const TEXT_LIGHT = 165;
 
-  // Brand title (top-center)
-  pdf.setFont('helvetica', 'bold'); pdf.setFontSize(18);
-  pdf.text('MAGYX', PW / 2, M + 8, { align: 'center' });
-  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8); pdf.setTextColor(120);
-  pdf.text('BON À TIRER', PW / 2, M + 13, { align: 'center' });
-  pdf.setTextColor(0);
+  // ─────────────────────────────────────────────────────────────
+  // BACKGROUND : vertical accent stripe on the left edge
+  // ─────────────────────────────────────────────────────────────
+  pdf.setFillColor(ACCENT.r, ACCENT.g, ACCENT.b);
+  pdf.rect(0, 0, 3, PH, 'F');
 
-  // Date + reference (top-right)
-  pdf.setFont('helvetica', 'bold'); pdf.setFontSize(11);
-  pdf.text(`Date  ${dateFr}`, PW - M, M + 5, { align: 'right' });
-  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8); pdf.setTextColor(120);
-  pdf.text(`Réf. ${refNum}`, PW - M, M + 10, { align: 'right' });
-  pdf.setTextColor(0);
+  // ─────────────────────────────────────────────────────────────
+  // HEADER BAND
+  // ─────────────────────────────────────────────────────────────
+  // Brand block (left)
+  pdf.setTextColor(TEXT_DARK);
+  pdf.setFont('helvetica', 'bold'); pdf.setFontSize(22);
+  pdf.text('MAGYX', M, 22);
+  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7);
+  pdf.setTextColor(TEXT_LIGHT);
+  pdf.text('CUSTOM SLIPPERS  •  HOSPITALITY', M, 27);
 
-  // ================ CENTER SNAPSHOT ================
-  const snapY = M + 35;
-  const snapW = PW - 2 * M;
-  const snapH = snapW / (1600 / 1100); // matches renderBATIllustration aspect
-  pdf.addImage(snapshot, 'PNG', M, snapY, snapW, snapH);
+  // Reference + date (right)
+  pdf.setFont('helvetica', 'bold'); pdf.setFontSize(8);
+  pdf.setTextColor(ACCENT.r, ACCENT.g, ACCENT.b);
+  pdf.text('BON À TIRER', PW - M, 18, { align: 'right' });
+  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9);
+  pdf.setTextColor(TEXT_DARK);
+  pdf.text(dateFr, PW - M, 24, { align: 'right' });
+  pdf.setFontSize(7); pdf.setTextColor(TEXT_LIGHT);
+  pdf.text('RÉF.  ' + refNum, PW - M, 28, { align: 'right' });
 
-  // Dashed separator
-  let y = snapY + snapH + 6;
-  pdf.setDrawColor(170);
-  pdf.setLineDashPattern([1.5, 1.5], 0);
-  pdf.line(M, y, PW - M, y);
-  pdf.setLineDashPattern([], 0);
+  // Thin accent line
+  pdf.setDrawColor(ACCENT.r, ACCENT.g, ACCENT.b);
+  pdf.setLineWidth(0.6);
+  pdf.line(M, 33, PW - M, 33);
+  pdf.setLineWidth(0.2);
 
-  // ================ SPEC SHEET ================
-  y += 8;
-  const labelX = M;
-  const valueX = M + 42;
-  const lineH = 6;
+  // ─────────────────────────────────────────────────────────────
+  // HERO IMAGE — 3D render of the customer's slipper
+  // ─────────────────────────────────────────────────────────────
+  const heroY = 38;
+  const heroW = PW - 2 * M;
+  const heroH = heroW / 1.55;
+  pdf.addImage(snapshot, 'PNG', M, heroY, heroW, heroH);
 
-  pdf.setFontSize(10);
-  const productName = `Slippers ${state.edition === 'basique' ? 'Basique' : 'Classique'} ${currentModel === 'fermee' ? 'closed' : 'open'}`;
-  const sizesLabel = state.sizes.length
-      ? state.sizes.map(s => `${SIZE_LABELS[s].fr} (${SIZE_LABELS[s].sole})`).join(' + ')
-      : '—';
-  const printText  = state.text.mode === 'thermo' && state.text.value.trim() ? `${state.text.value} — ${hexToCmykLabel(state.text.color)}` : '—';
-  const embText    = state.text.mode === 'embroidery' && state.text.value.trim() ? `${state.text.value} — ${hexToCmykLabel(state.text.color)}` : '—';
+  // Subtle caption strip below the image
+  const capY = heroY + heroH + 4;
+  pdf.setFont('helvetica', 'italic'); pdf.setFontSize(8);
+  pdf.setTextColor(TEXT_LIGHT);
+  const captionText = `Aperçu personnalisé  •  ${currentModel === 'fermee' ? 'Modèle fermé' : 'Modèle ouvert'}  •  ${state.quantity} paires`;
+  pdf.text(captionText, PW / 2, capY, { align: 'center' });
 
-  const rows = [
-    ['Product Description', productName],
-    ['Quality',             state.edition === 'basique' ? 'Basique' : 'Classic Plus'],
-    ['Surface',             `${state.fabricColor.toUpperCase()}  —  ${hexToCmykLabel(state.fabricColor)}`],
-    ['Border',              `${state.pipingColor.toUpperCase()}  —  ${hexToCmykLabel(state.pipingColor)}`],
-    ['Sole color',          state.soleColor.toUpperCase() === '#FFFFFF' ? 'Blanche' : 'Noire'],
-    ['Embroidery',          embText],
-    ['Print',               printText],
-    ['Quantity',            `${state.quantity} pairs  —  ${sizesLabel}`]
-  ];
-  rows.forEach(([label, value]) => {
-    pdf.setFont('helvetica', 'bold');
-    pdf.text(label + ' :', labelX, y);
-    pdf.setFont('helvetica', 'normal');
-    const txt = pdf.splitTextToSize(value, PW - valueX - M - 30); // reserve right side for swatches
-    pdf.text(txt, valueX, y);
-    y += lineH * Math.max(1, txt.length);
-  });
+  // ─────────────────────────────────────────────────────────────
+  // SECTION TITLE — PALETTE
+  // ─────────────────────────────────────────────────────────────
+  let sectionY = capY + 9;
+  drawSectionTitle(pdf, M, PW, sectionY, 'PALETTE', ACCENT);
+  sectionY += 8;
 
-  // Color swatches block (right side, aligned with spec sheet top)
-  const swX = PW - M - 30;
-  const swY = snapY + snapH + 14;
+  // Big color swatches in a row with names and codes
   const swatches = [
-    { hex: state.fabricColor, lbl: 'Surface' },
-    { hex: state.pipingColor, lbl: 'Border'  }
+    { hex: state.fabricColor,  label: 'TISSU' },
+    { hex: state.pipingColor,  label: 'LISÉRÉ' }
   ];
-  if (state.text.value.trim()) swatches.push({ hex: state.text.color, lbl: 'Print' });
+  if (state.text.value.trim()) swatches.push({ hex: state.text.color, label: 'TEXTE' });
+  swatches.push({ hex: state.soleColor === '#FFFFFF' ? '#FFFFFF' : '#1C1C1C', label: 'SEMELLE' });
+
+  const swatchSize = 22;
+  const swatchGap = 6;
+  const swatchTotalW = swatches.length * swatchSize + (swatches.length - 1) * swatchGap;
+  const swatchStartX = (PW - swatchTotalW) / 2;
   swatches.forEach((s, i) => {
-    const yy = swY + i * 8;
+    const x = swatchStartX + i * (swatchSize + swatchGap);
     const { r, g, b } = hexToRgb(s.hex);
     pdf.setFillColor(r, g, b);
-    pdf.setDrawColor(180);
-    pdf.roundedRect(swX, yy, 6, 6, 1, 1, 'FD');
-    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8);
-    pdf.text(hexToCmykLabel(s.hex), swX + 8, yy + 4);
+    pdf.setDrawColor(225);
+    pdf.setLineWidth(0.3);
+    pdf.roundedRect(x, sectionY, swatchSize, swatchSize, 2, 2, 'FD');
+    // Label below
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(7);
+    pdf.setTextColor(TEXT_DARK);
+    pdf.text(s.label, x + swatchSize / 2, sectionY + swatchSize + 4, { align: 'center' });
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(6);
+    pdf.setTextColor(TEXT_MED);
+    pdf.text(s.hex.toUpperCase(), x + swatchSize / 2, sectionY + swatchSize + 8, { align: 'center' });
+    pdf.text(hexToCmykLabel(s.hex), x + swatchSize / 2, sectionY + swatchSize + 11.5, { align: 'center' });
   });
+  sectionY += swatchSize + 16;
 
-  // ================ FOOTER ================
-  // Layout (top → bottom):
-  //   1. Customer info block (3 lines, top of footer area)
-  //   2. Dashed separator line
-  //   3. Three signature columns: Date | Signature | Stamp
-  //   4. Italic column labels at the very bottom
-  // Spacing carefully tuned so the date stamp NEVER overlaps the email.
+  // ─────────────────────────────────────────────────────────────
+  // SECTION TITLE — CONFIGURATION (2-column spec sheet)
+  // ─────────────────────────────────────────────────────────────
+  drawSectionTitle(pdf, M, PW, sectionY, 'CONFIGURATION', ACCENT);
+  sectionY += 8;
 
-  const customerBlockY = PH - 50;     // top of customer info block
-  const separatorY     = PH - 28;     // dashed line
-  const bottomY        = PH - M;      // italic labels Y
-  const colDateX = PW * 0.18;
-  const colSigX  = PW * 0.50;
-  const colStpX  = PW * 0.82;
+  const colWidth = (PW - 2 * M - 10) / 2;
+  const col1X = M;
+  const col2X = M + colWidth + 10;
+  const sizesLabel = state.sizes.length
+    ? state.sizes.map(s => `${SIZE_LABELS[s].fr} (${SIZE_LABELS[s].sole})`).join(' + ')
+    : '—';
+  const printVal = state.text.mode === 'thermo'     && state.text.value.trim() ? `« ${state.text.value} »` : '—';
+  const embVal   = state.text.mode === 'embroidery' && state.text.value.trim() ? `« ${state.text.value} »` : '—';
+  const logoVal  = state.logo.image ? 'Logo personnalisé fourni' : '—';
 
-  // Customer info block
-  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9); pdf.setTextColor(80);
-  if (state.signature.customer.name)    { pdf.text(state.signature.customer.name,    M, customerBlockY);     }
-  if (state.signature.customer.company) { pdf.text(state.signature.customer.company, M, customerBlockY + 4); }
-  if (state.signature.customer.email)   { pdf.text(state.signature.customer.email,   M, customerBlockY + 8); }
-  pdf.setTextColor(0);
+  const specsLeft = [
+    ['Modèle',       currentModel === 'fermee' ? 'Pantoufle fermée (closed)' : 'Pantoufle ouverte (open)'],
+    ['Édition',      state.edition === 'basique' ? 'Basique' : 'Classique'],
+    ['Tailles',      sizesLabel],
+    ['Quantité',     `${state.quantity} paires`]
+  ];
+  const specsRight = [
+    ['Logo',         logoVal],
+    ['Thermo',       printVal],
+    ['Broderie',     embVal],
+    ['Semelle',      state.soleColor.toUpperCase() === '#FFFFFF' ? 'Blanche' : 'Noire']
+  ];
 
-  // Dashed separator BELOW the customer block
-  pdf.setLineDashPattern([1.2, 1.2], 0);
-  pdf.line(M, separatorY, PW - M, separatorY);
-  pdf.setLineDashPattern([], 0);
+  function drawSpecCol(rows, x) {
+    let yy = sectionY;
+    rows.forEach(([k, v]) => {
+      pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7);
+      pdf.setTextColor(TEXT_LIGHT);
+      pdf.text(k.toUpperCase(), x, yy);
+      pdf.setFont('helvetica', 'bold'); pdf.setFontSize(9.5);
+      pdf.setTextColor(TEXT_DARK);
+      const wrapped = pdf.splitTextToSize(v, colWidth);
+      pdf.text(wrapped, x, yy + 4.5);
+      yy += 4.5 + 4.5 * wrapped.length + 2;
+    });
+    return yy;
+  }
+  const endLeft  = drawSpecCol(specsLeft,  col1X);
+  const endRight = drawSpecCol(specsRight, col2X);
+  sectionY = Math.max(endLeft, endRight) + 4;
 
-  // Filled date in the Date column (between separator and bottom labels)
-  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10);
-  pdf.text(dateFr, colDateX, separatorY + 7, { align: 'center' });
+  // ─────────────────────────────────────────────────────────────
+  // VALIDATION BLOCK (bottom) — signature + customer info side-by-side
+  // ─────────────────────────────────────────────────────────────
+  const valY = PH - 60;
+  drawSectionTitle(pdf, M, PW, valY, 'VALIDATION & ACCORD', ACCENT);
 
-  // Signature image — placed between separator and bottom labels, in the Signature column
+  // Left: customer info
+  let cY = valY + 8;
+  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7);
+  pdf.setTextColor(TEXT_LIGHT);
+  pdf.text('CLIENT', M, cY);
+  cY += 4.5;
+  pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10);
+  pdf.setTextColor(TEXT_DARK);
+  if (state.signature.customer.name)    { pdf.text(state.signature.customer.name,    M, cY); cY += 4.5; }
+  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9);
+  pdf.setTextColor(TEXT_MED);
+  if (state.signature.customer.company) { pdf.text(state.signature.customer.company, M, cY); cY += 4.0; }
+  if (state.signature.customer.email)   { pdf.text(state.signature.customer.email,   M, cY); cY += 4.0; }
+  if (state.signature.customer.phone)   { pdf.text(state.signature.customer.phone,   M, cY); cY += 4.0; }
+
+  // Right: signature
+  const sigBoxX = PW - M - 70;
+  const sigBoxY = valY + 8;
+  const sigBoxW = 70;
+  const sigBoxH = 30;
+  pdf.setDrawColor(220);
+  pdf.setLineWidth(0.3);
+  pdf.roundedRect(sigBoxX, sigBoxY, sigBoxW, sigBoxH, 2, 2, 'D');
+
+  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7);
+  pdf.setTextColor(TEXT_LIGHT);
+  pdf.text('SIGNATURE', sigBoxX + 3, sigBoxY + 4);
+  pdf.text('LE  ' + dateFr, sigBoxX + sigBoxW - 3, sigBoxY + 4, { align: 'right' });
+
   if (sigPng) {
-    try { pdf.addImage(sigPng, 'PNG', colSigX - 22, separatorY + 1, 44, 11); } catch (_) {}
+    try {
+      pdf.addImage(sigPng, 'PNG', sigBoxX + 8, sigBoxY + 7, sigBoxW - 16, sigBoxH - 12);
+    } catch (_) {}
   }
 
-  // Column labels (italic, like the reference)
-  pdf.setFont('helvetica', 'italic'); pdf.setFontSize(10); pdf.setTextColor(100);
-  pdf.text('Date',      colDateX, bottomY, { align: 'center' });
-  pdf.text('Signature', colSigX,  bottomY, { align: 'center' });
-  pdf.text('Stamp',     colStpX,  bottomY, { align: 'center' });
-  pdf.setTextColor(0);
+  // ─────────────────────────────────────────────────────────────
+  // FOOTER — thank you message + page meta
+  // ─────────────────────────────────────────────────────────────
+  pdf.setDrawColor(ACCENT.r, ACCENT.g, ACCENT.b);
+  pdf.setLineWidth(0.4);
+  pdf.line(M, PH - 16, PW - M, PH - 16);
+
+  pdf.setFont('helvetica', 'bold'); pdf.setFontSize(8);
+  pdf.setTextColor(ACCENT.r, ACCENT.g, ACCENT.b);
+  pdf.text('MERCI POUR VOTRE CONFIANCE', M, PH - 10);
+  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7);
+  pdf.setTextColor(TEXT_LIGHT);
+  pdf.text('www.magyx.be  •  Pantoufles d\'hôtel sur-mesure', M, PH - 6);
+
+  pdf.setFontSize(7);
+  pdf.setTextColor(TEXT_LIGHT);
+  pdf.text('Document généré le ' + dateFr, PW - M, PH - 6, { align: 'right' });
+  pdf.text('Page 1 / 1', PW - M, PH - 10, { align: 'right' });
 
   // Save
   const safeCompany = (state.signature.customer.company || 'commande')
@@ -2523,6 +2630,20 @@ function generateBAT() {
     status.style.color = 'var(--accent)';
     status.textContent = '✓ Bon à tirer généré et téléchargé';
   }
+}
+
+// Helper: draws a section title with a thin accent line underneath
+function drawSectionTitle(pdf, M, PW, y, title, ACCENT) {
+  pdf.setFont('helvetica', 'bold'); pdf.setFontSize(9);
+  pdf.setTextColor(ACCENT.r, ACCENT.g, ACCENT.b);
+  pdf.text(title, M, y);
+  // Small dot
+  pdf.setFillColor(ACCENT.r, ACCENT.g, ACCENT.b);
+  pdf.circle(M + pdf.getTextWidth(title) + 3, y - 1, 0.6, 'F');
+  // Thin separator from after the title to the right margin
+  pdf.setDrawColor(220);
+  pdf.setLineWidth(0.2);
+  pdf.line(M + pdf.getTextWidth(title) + 8, y - 1.5, PW - 16, y - 1.5);
 }
 
 function textPanelHTML() {
