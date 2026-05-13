@@ -20,8 +20,32 @@
     --text: #1C1C1C;
     --muted: #7A7A75;
     --accent: #7A9A3A;
+    --canvas-grad-1: #FFFFFF;
+    --canvas-grad-2: #F2EFE8;
+    --canvas-grad-3: #E8E4DA;
+    --top-bar-bg: rgba(250, 250, 247, 0.85);
+    --backdrop: rgba(255, 255, 255, 0.7);
     --shadow-sm: 0 1px 2px rgba(0,0,0,0.04), 0 2px 6px rgba(0,0,0,0.04);
     --shadow-md: 0 4px 14px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+  }
+  body.dark {
+    --bg: #0E1311;
+    --card: #181D1A;
+    --border: #2A2F2C;
+    --text: #F2F2EE;
+    --muted: #9CA39B;
+    --accent: #A4C45A;
+    --canvas-grad-1: #1F2522;
+    --canvas-grad-2: #161B19;
+    --canvas-grad-3: #0E1311;
+    --top-bar-bg: rgba(14, 19, 17, 0.85);
+    --backdrop: rgba(20, 25, 22, 0.7);
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.30), 0 2px 6px rgba(0,0,0,0.40);
+    --shadow-md: 0 4px 14px rgba(0,0,0,0.50), 0 2px 4px rgba(0,0,0,0.30);
+  }
+  /* Smooth theme transition */
+  body, .tile, .panel, .top-bar, .badges-bar, .canvas-wrap, input, button, .swatch-grid, .file-zone, .edition-card, .size-card, .asset-loaded {
+    transition: background-color 280ms ease, color 280ms ease, border-color 280ms ease;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { height: 100%; overflow: hidden; }
@@ -34,7 +58,7 @@
     position: fixed; top: 0; left: 0; right: 0; height: 78px;
     display: flex; align-items: center; justify-content: space-between;
     padding: 0 36px;
-    background: rgba(250, 250, 247, 0.85);
+    background: var(--top-bar-bg);
     backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--border);
     z-index: 50;
@@ -53,6 +77,28 @@
   .top-bar .eyebrow::before, .top-bar .eyebrow::after { content: '—'; opacity: 0.5; margin: 0 10px; }
   .top-bar h1 { font-size: 20px; font-weight: 800; letter-spacing: 1.5px; }
   .top-bar .meta { font-size: 12px; color: var(--muted); letter-spacing: 1px; }
+  .top-bar .meta-wrap { display: flex; align-items: center; gap: 16px; }
+  .theme-toggle {
+    width: 40px; height: 40px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    border-radius: 50%;
+    display: grid; place-items: center;
+    cursor: pointer;
+    color: var(--text);
+    transition: all 180ms ease;
+    box-shadow: var(--shadow-sm);
+  }
+  .theme-toggle:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    transform: rotate(8deg);
+  }
+  .theme-toggle svg { width: 18px; height: 18px; }
+  .theme-toggle .icon-sun  { display: none; }
+  .theme-toggle .icon-moon { display: block; }
+  body.dark .theme-toggle .icon-sun  { display: block; }
+  body.dark .theme-toggle .icon-moon { display: none; }
   .stage {
     position: fixed; top: 78px; left: 0; right: 0; bottom: 86px;
     display: grid; grid-template-columns: 240px 1fr 240px;
@@ -80,29 +126,30 @@
   .tile .desc { font-size: 10.5px; color: var(--muted); line-height: 1.3; }
   .canvas-wrap {
     position: relative;
-    background: radial-gradient(ellipse at center, #FFFFFF 0%, #F2EFE8 70%, #E8E4DA 100%);
+    background: radial-gradient(ellipse at center, var(--canvas-grad-1) 0%, var(--canvas-grad-2) 70%, var(--canvas-grad-3) 100%);
     border-radius: 18px; border: 1px solid var(--border);
     box-shadow: var(--shadow-md); overflow: hidden;
-    transition: transform 480ms cubic-bezier(.4,.0,.2,1);
+    transition: transform 480ms cubic-bezier(.4,.0,.2,1), background 280ms ease;
   }
   .canvas-wrap canvas { display: block; width: 100%; height: 100%; cursor: grab; }
   .canvas-wrap canvas:active { cursor: grabbing; }
   .canvas-hint {
     position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%);
     font-size: 11px; color: var(--muted); letter-spacing: 1.5px;
-    background: rgba(255,255,255,0.7); padding: 6px 14px; border-radius: 999px;
+    background: var(--backdrop); padding: 6px 14px; border-radius: 999px;
     backdrop-filter: blur(6px); pointer-events: none;
   }
   .model-toggle {
     position: absolute; top: 18px; left: 50%; transform: translateX(-50%);
     display: flex; gap: 4px; padding: 4px;
-    background: rgba(255,255,255,0.85);
+    background: var(--backdrop);
     border: 1px solid var(--border);
     border-radius: 999px;
     backdrop-filter: blur(8px);
     box-shadow: var(--shadow-sm);
     z-index: 5;
   }
+  .model-toggle button { color: var(--muted); background: transparent; }
   .model-toggle button {
     border: none; background: transparent;
     padding: 8px 18px; border-radius: 999px;
@@ -338,7 +385,8 @@
   .sig-tabs {
     display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
     margin-bottom: 14px; padding: 4px;
-    background: rgba(0,0,0,0.04); border-radius: 10px;
+    background: var(--bg); border-radius: 10px;
+    border: 1px solid var(--border);
   }
   .sig-tabs button {
     padding: 8px 6px; border: none; background: transparent;
@@ -349,8 +397,8 @@
   }
   .sig-tabs button:hover { color: var(--text); }
   .sig-tabs button.active {
-    background: white; color: var(--text);
-    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    background: var(--card); color: var(--text);
+    box-shadow: var(--shadow-sm);
   }
   .sig-pane { display: none; }
   .sig-pane.active { display: block; }
@@ -364,7 +412,7 @@
   .sig-type-input:focus { outline: none; border-color: var(--accent); }
   .sig-type-preview {
     margin-top: 14px;
-    background: linear-gradient(180deg, #FFFFFF 0%, #FAFAF7 100%);
+    background: var(--bg);
     border: 1px dashed var(--border);
     border-radius: 12px;
     height: 110px;
@@ -372,6 +420,7 @@
     overflow: hidden;
     position: relative;
   }
+  body.dark .sig-type-preview .signed { color: #F2F2EE; }
   .sig-type-preview .ghost {
     color: var(--muted); font-size: 13px; font-style: italic;
   }
@@ -403,7 +452,7 @@
   .sig-canvas-wrap {
     position: relative;
     border: 1px dashed var(--border); border-radius: 12px;
-    background: #FFFFFF;
+    background: var(--card);
     overflow: hidden;
   }
   .sig-canvas-wrap canvas { display: block; width: 100%; height: 180px; cursor: crosshair; touch-action: none; }
@@ -527,7 +576,13 @@
     <div class="eyebrow">ENVIE DE VOUS DIFFÉRENCIER ?</div>
     <h1>PERSONNALISONS ENSEMBLE</h1>
   </div>
-  <div class="meta">www.magyx.be</div>
+  <div class="meta-wrap">
+    <span class="meta">www.magyx.be</span>
+    <button class="theme-toggle" id="theme-toggle" title="Changer de thème" aria-label="Changer de thème">
+      <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      <svg class="icon-sun"  viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+    </button>
+  </div>
 </header>
 
 <main class="stage">
@@ -2003,6 +2058,30 @@ const PANELS = {
 function escapeHtml(s) {
   return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 }
+
+// ============================================================
+// DARK MODE TOGGLE (persisted via localStorage)
+// ============================================================
+(function initTheme() {
+  const saved = localStorage.getItem('magyx-theme');
+  // Default to light; respect prefers-color-scheme if no manual choice
+  const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const useDark = saved === 'dark' || (saved === null && prefersDark);
+  if (useDark) document.body.classList.add('dark');
+
+  const btn = document.getElementById('theme-toggle');
+  if (btn) {
+    btn.addEventListener('click', () => {
+      document.body.classList.toggle('dark');
+      const isDark = document.body.classList.contains('dark');
+      localStorage.setItem('magyx-theme', isDark ? 'dark' : 'light');
+      // Adjust the renderer clear color & scene background for the new theme
+      if (typeof renderer !== 'undefined') {
+        renderer.setClearColor(isDark ? 0x0E1311 : 0xffffff, 0);
+      }
+    });
+  }
+})();
 
 // ============================================================
 // BAT (Bon À Tirer) PDF GENERATION
