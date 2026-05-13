@@ -2392,18 +2392,22 @@ async function captureHeroSnapshot() {
   const oldW = renderer.domElement.width;
   const oldH = renderer.domElement.height;
 
-  // Save left group position/visibility
+  // Save left group + accessories
   const leftGroup = MODELS[leftKey].group;
   const leftSavedPos = leftGroup.position.clone();
   const leftSavedVis = leftGroup.visible;
   const leftPipingVis = pipingGroups[leftKey] ? pipingGroups[leftKey].visible : false;
+  const leftPipingSavedX = pipingGroups[leftKey] ? pipingGroups[leftKey].position.x : 0;
+  const leftLogoSavedX   = logoSlot.meshes[leftKey] ? logoSlot.meshes[leftKey].position.x : 0;
+  const leftTextSavedX   = textSlot.meshes[leftKey] ? textSlot.meshes[leftKey].position.x : 0;
 
-  let rightGroup, rightSavedPos, rightSavedVis, rightPipingVis;
+  let rightGroup, rightSavedPos, rightSavedVis, rightPipingVis, rightPipingSavedX;
   if (rightLoaded) {
     rightGroup = MODELS[rightKey].group;
     rightSavedPos = rightGroup.position.clone();
     rightSavedVis = rightGroup.visible;
     rightPipingVis = pipingGroups[rightKey] ? pipingGroups[rightKey].visible : false;
+    rightPipingSavedX = pipingGroups[rightKey] ? pipingGroups[rightKey].position.x : 0;
   }
 
   // Top-down view, slipper container not rotated
@@ -2413,17 +2417,27 @@ async function captureHeroSnapshot() {
   // Reapply texture redraw so both lefts and rights match current state
   redrawSlipperTexture();
 
-  // Position left and right side by side
+  // Position left + right side by side. The piping and decal meshes are
+  // children of `slipper` (not of the GLB group), so we must offset them
+  // manually to keep them attached to their respective slipper.
   const xOffset = 1.6;
   if (rightLoaded) {
+    // LEFT: shift everything related to it by -xOffset
     leftGroup.position.x = leftSavedPos.x - xOffset;
-    rightGroup.position.x = rightSavedPos.x + xOffset;
+    if (pipingGroups[leftKey])    pipingGroups[leftKey].position.x = leftPipingSavedX - xOffset;
+    if (logoSlot.meshes[leftKey]) logoSlot.meshes[leftKey].position.x = leftLogoSavedX - xOffset;
+    if (textSlot.meshes[leftKey]) textSlot.meshes[leftKey].position.x = leftTextSavedX - xOffset;
     leftGroup.visible = true;
+    if (pipingGroups[leftKey]) pipingGroups[leftKey].visible = true;
+
+    // RIGHT: shift the group + its piping by +xOffset.
+    // Right-side decals are built AFTER this offset, so they're already at the right place.
+    rightGroup.position.x = rightSavedPos.x + xOffset;
+    if (pipingGroups[rightKey]) pipingGroups[rightKey].position.x = rightPipingSavedX + xOffset;
     rightGroup.visible = true;
-    if (pipingGroups[leftKey])  pipingGroups[leftKey].visible = true;
     if (pipingGroups[rightKey]) pipingGroups[rightKey].visible = true;
 
-    // Build right-side decals so the logo/text appear on the right slipper too
+    // Build right-side decals (logo + text)
     buildDecalForRightModel(logoSlot, state.logo.x, state.logo.y, state.logo.rotation, state.logo.scale);
     buildDecalForRightModel(textSlot, state.text.x, state.text.y, state.text.rotation, state.text.scale * 0.85);
   }
@@ -2454,12 +2468,17 @@ async function captureHeroSnapshot() {
 
   leftGroup.position.copy(leftSavedPos);
   leftGroup.visible = leftSavedVis;
-  if (pipingGroups[leftKey]) pipingGroups[leftKey].visible = leftPipingVis;
+  if (pipingGroups[leftKey])    { pipingGroups[leftKey].position.x = leftPipingSavedX; pipingGroups[leftKey].visible = leftPipingVis; }
+  if (logoSlot.meshes[leftKey]) logoSlot.meshes[leftKey].position.x = leftLogoSavedX;
+  if (textSlot.meshes[leftKey]) textSlot.meshes[leftKey].position.x = leftTextSavedX;
 
   if (rightLoaded) {
     rightGroup.position.copy(rightSavedPos);
     rightGroup.visible = rightSavedVis;
-    if (pipingGroups[rightKey]) pipingGroups[rightKey].visible = rightPipingVis;
+    if (pipingGroups[rightKey]) {
+      pipingGroups[rightKey].position.x = rightPipingSavedX;
+      pipingGroups[rightKey].visible = rightPipingVis;
+    }
     // Remove the right-side decals (kept only for the snapshot)
     removeDecalForKey(logoSlot, rightKey);
     removeDecalForKey(textSlot, rightKey);
