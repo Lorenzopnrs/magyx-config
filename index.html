@@ -728,11 +728,45 @@
     .canvas-wrap { height: 42vh; }
     .badge .b-text { font-size: 8px; }
   }
+
+  /* Portrait lock — on phones in landscape, freeze the module and ask
+     the user to rotate back to portrait. */
+  .rotate-lock {
+    display: none;
+    position: fixed; inset: 0; z-index: 9999;
+    background: var(--bg);
+    flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; padding: 40px;
+    gap: 18px;
+  }
+  .rotate-lock .rotate-icon {
+    width: 64px; height: 64px;
+    color: var(--accent);
+    animation: rotateHint 2.4s ease-in-out infinite;
+  }
+  @keyframes rotateHint {
+    0%, 40%   { transform: rotate(0deg); }
+    60%, 100% { transform: rotate(-90deg); }
+  }
+  .rotate-lock h2 { font-size: 18px; font-weight: 800; letter-spacing: 1px; color: var(--text); }
+  .rotate-lock p  { font-size: 13px; color: var(--muted); max-width: 280px; line-height: 1.5; }
+  @media (max-width: 900px) and (orientation: landscape) {
+    .rotate-lock { display: flex; }
+  }
 </style>
 </head>
 <body>
 
 <div class="loader" id="loader"><div class="spinner"></div></div>
+
+<div class="rotate-lock" id="rotate-lock">
+  <svg class="rotate-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="7" y="2" width="10" height="20" rx="2"/>
+    <path d="M11 18h2"/>
+  </svg>
+  <h2>TOURNEZ VOTRE TÉLÉPHONE</h2>
+  <p>Le configurateur MAGYX s'utilise en mode portrait. Remettez votre appareil à la verticale pour continuer.</p>
+</div>
 
 <header class="top-bar">
   <div class="brand-mark">
@@ -756,23 +790,23 @@
   <aside class="tiles-col tiles-left">
     <div class="tile" data-panel="fabric">
       <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2v20"/></svg></div>
-      <div class="text"><span class="label">Couleur du Tissu</span><span class="desc">Large choix</span></div>
+      <div class="text"><span class="label">Tissu</span><span class="desc">Couleur du tissu</span></div>
     </div>
     <div class="tile" data-panel="piping">
       <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 0 1 18 0M3 12a9 9 0 0 0 18 0"/></svg></div>
-      <div class="text"><span class="label">Couleur du Liséré</span><span class="desc">Bordure soignée</span></div>
+      <div class="text"><span class="label">Liséré</span><span class="desc">Couleur du liséré</span></div>
     </div>
     <div class="tile" data-panel="logo">
       <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></div>
-      <div class="text"><span class="label">Ajout du Logo</span><span class="desc">Votre identité</span></div>
+      <div class="text"><span class="label">Logo</span><span class="desc">Votre identité</span></div>
     </div>
     <div class="tile" data-panel="thermo">
       <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3 7 7 .5-5.5 4.5 2 7-6.5-4-6.5 4 2-7L2 9.5 9 9z"/></svg></div>
-      <div class="text"><span class="label">Thermo Impression</span><span class="desc">Marquage durable</span></div>
+      <div class="text"><span class="label">Thermo</span><span class="desc">Marquage imprimé</span></div>
     </div>
     <div class="tile" data-panel="embroidery">
       <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16" stroke-dasharray="3 2"/></svg></div>
-      <div class="text"><span class="label">Broderie</span><span class="desc">Finition élégante</span></div>
+      <div class="text"><span class="label">Broderie</span><span class="desc">Finition cousue</span></div>
     </div>
   </aside>
 
@@ -804,7 +838,7 @@
   <aside class="tiles-col tiles-right">
     <div class="tile" data-panel="sole">
       <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 18h18M5 18l1-9a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4l1 9"/></svg></div>
-      <div class="text"><span class="label">Couleur de la Semelle</span><span class="desc">Blanche ou noire</span></div>
+      <div class="text"><span class="label">Semelle</span><span class="desc">Blanche ou noire</span></div>
     </div>
     <div class="tile" data-panel="size">
       <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8h18v8H3zM7 8v4M11 8v4M15 8v4M19 8v4"/></svg></div>
@@ -816,7 +850,7 @@
     </div>
     <div class="tile" data-panel="signature">
       <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17c4-2 8-2 12 0s5 0 6-2"/><path d="M9 11l4-4 4 4"/><path d="M13 7v10"/></svg></div>
-      <div class="text"><span class="label">Validation & Signature</span><span class="desc">Bon à tirer</span></div>
+      <div class="text"><span class="label">Signature</span><span class="desc">Bon à tirer</span></div>
     </div>
   </aside>
 
@@ -2708,10 +2742,9 @@ async function generateBAT() {
               + '-' + Math.floor(Math.random() * 9000 + 1000);
 
   const { jsPDF } = window.jspdf;
-  // Taller-than-A4 page so the slipper can be shown LARGE — it's fine
-  // for the viewer to scroll down for the spec sheet & validation.
-  const PW = 210, PH = 470;
-  const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: [PW, PH] });
+  // Standard A4 page.
+  const PW = 210, PH = 297;
+  const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
   const M = 16;
 
   // Brand color (MAGYX olive)
@@ -2754,57 +2787,78 @@ async function generateBAT() {
   pdf.setLineWidth(0.2);
 
   // ─────────────────────────────────────────────────────────────
-  // HERO IMAGE — Pair of slippers, top-down view
+  // HERO ZONE — slipper centered, colour swatches placed AROUND it,
+  // each linked to its area on the slipper with a connector line.
   // ─────────────────────────────────────────────────────────────
-  const heroY = 40;
-  // captureHeroSnapshot renders portrait at 900 × 1500 → aspect 0.6
-  // Show it BIG: ~75% of page width, centered. Height follows the aspect.
-  const heroW = (PW - 2 * M) * 0.78;
-  const heroH = heroW / 0.6;
-  const heroX = (PW - heroW) / 2;
-  pdf.addImage(snapshot, 'PNG', heroX, heroY, heroW, heroH);
+  // captureHeroSnapshot renders portrait at aspect 0.6 (w/h).
+  const heroImgW = 58;
+  const heroImgH = heroImgW / 0.6;             // ≈ 97mm
+  const heroImgX = (PW - heroImgW) / 2;
+  const heroImgY = 42;
+  pdf.addImage(snapshot, 'PNG', heroImgX, heroImgY, heroImgW, heroImgH);
 
-  // Caption below the image
-  const capY = heroY + heroH + 4;
-  pdf.setFont('helvetica', 'italic'); pdf.setFontSize(8);
-  pdf.setTextColor(TEXT_LIGHT);
-  const captionText = `Aperçu personnalisé  •  ${currentModel === 'fermee' ? 'Modèle fermé' : 'Modèle ouvert'}  •  Paire vue de dessus`;
-  pdf.text(captionText, PW / 2, capY, { align: 'center' });
-
-  // ─────────────────────────────────────────────────────────────
-  // PALETTE — large color swatches with HEX + CMYK labels
-  // ─────────────────────────────────────────────────────────────
-  let sectionY = capY + 9;
-  drawSectionTitle(pdf, M, PW, sectionY, 'PALETTE', ACCENT);
-  sectionY += 8;
-
-  const swatches = [
-    { hex: state.fabricColor,  label: 'TISSU' },
-    { hex: state.pipingColor,  label: 'LISÉRÉ' }
+  // Build the swatch list (only colours actually used)
+  const heroSwatches = [
+    { hex: state.fabricColor, label: 'TISSU',
+      anchor: { x: heroImgX + heroImgW * 0.50, y: heroImgY + heroImgH * 0.40 } },
+    { hex: state.pipingColor, label: 'LISÉRÉ',
+      anchor: { x: heroImgX + heroImgW * 0.92, y: heroImgY + heroImgH * 0.28 } },
+    { hex: state.soleColor.toUpperCase() === '#FFFFFF' ? '#FFFFFF' : '#1C1C1C', label: 'SEMELLE',
+      anchor: { x: heroImgX + heroImgW * 0.62, y: heroImgY + heroImgH * 0.80 } }
   ];
-  if (state.text.value.trim()) swatches.push({ hex: state.text.color, label: 'TEXTE' });
-  swatches.push({ hex: state.soleColor === '#FFFFFF' ? '#FFFFFF' : '#1C1C1C', label: 'SEMELLE' });
+  if (state.text.value.trim()) {
+    heroSwatches.splice(2, 0, { hex: state.text.color, label: 'TEXTE',
+      anchor: { x: heroImgX + heroImgW * 0.50, y: heroImgY + heroImgH * 0.58 } });
+  }
 
-  const swatchSize = 18;
-  const swatchGap  = 8;
-  const swatchTotalW = swatches.length * swatchSize + (swatches.length - 1) * swatchGap;
-  const swatchStartX = (PW - swatchTotalW) / 2;
-  swatches.forEach((s, i) => {
-    const x = swatchStartX + i * (swatchSize + swatchGap);
+  // Slots around the image: alternate left / right, top → bottom
+  const swSize = 13;
+  const slotYs = [ heroImgY + 6, heroImgY + heroImgH - swSize - 22 ];
+  const slots = [
+    { side: 'left',  y: slotYs[0] },
+    { side: 'right', y: slotYs[0] },
+    { side: 'left',  y: slotYs[1] },
+    { side: 'right', y: slotYs[1] }
+  ];
+
+  heroSwatches.forEach((s, i) => {
+    const slot = slots[i];
+    const swX = slot.side === 'left' ? M : PW - M - swSize;
+    const swY = slot.y;
     const { r, g, b } = hexToRgb(s.hex);
+
+    // Connector line from the swatch edge to the anchor point on the slipper
+    pdf.setDrawColor(ACCENT.r, ACCENT.g, ACCENT.b);
+    pdf.setLineWidth(0.4);
+    const lineStartX = slot.side === 'left' ? swX + swSize : swX;
+    pdf.line(lineStartX, swY + swSize / 2, s.anchor.x, s.anchor.y);
+    pdf.setFillColor(ACCENT.r, ACCENT.g, ACCENT.b);
+    pdf.circle(s.anchor.x, s.anchor.y, 0.7, 'F');
+
+    // Colour square
     pdf.setFillColor(r, g, b);
-    pdf.setDrawColor(225);
+    pdf.setDrawColor(205);
     pdf.setLineWidth(0.3);
-    pdf.roundedRect(x, sectionY, swatchSize, swatchSize, 2, 2, 'FD');
+    pdf.roundedRect(swX, swY, swSize, swSize, 1.6, 1.6, 'FD');
+
+    // Label + HEX + CMYK under the square
     pdf.setFont('helvetica', 'bold'); pdf.setFontSize(7);
     pdf.setTextColor(TEXT_DARK);
-    pdf.text(s.label, x + swatchSize / 2, sectionY + swatchSize + 4, { align: 'center' });
-    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(6);
+    pdf.text(s.label, swX + swSize / 2, swY + swSize + 4, { align: 'center' });
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(5.5);
     pdf.setTextColor(TEXT_MED);
-    pdf.text(s.hex.toUpperCase(), x + swatchSize / 2, sectionY + swatchSize + 8, { align: 'center' });
-    pdf.text(hexToCmykLabel(s.hex), x + swatchSize / 2, sectionY + swatchSize + 11.5, { align: 'center' });
+    pdf.text(s.hex.toUpperCase(), swX + swSize / 2, swY + swSize + 7.5, { align: 'center' });
+    pdf.text(hexToCmykLabel(s.hex), swX + swSize / 2, swY + swSize + 10.5, { align: 'center' });
   });
-  sectionY += swatchSize + 18;
+
+  // Caption below the image
+  const capY = heroImgY + heroImgH + 6;
+  pdf.setFont('helvetica', 'italic'); pdf.setFontSize(8);
+  pdf.setTextColor(TEXT_LIGHT);
+  const captionText = `Aperçu personnalisé  •  ${currentModel === 'fermee' ? 'Modèle fermé' : 'Modèle ouvert'}  •  Vue de dessus`;
+  pdf.text(captionText, PW / 2, capY, { align: 'center' });
+
+  let sectionY = capY + 10;
 
   // ─────────────────────────────────────────────────────────────
   // SPÉCIFICATIONS — three semantic groups in three columns
@@ -3182,6 +3236,10 @@ function loadLogo(file) {
 document.querySelectorAll('.tile').forEach(t => {
   t.addEventListener('click', () => openPanel(t.dataset.panel));
 });
+// Tracks which panel is currently open, so we know whether to reveal the
+// positioning pad once the panel is closed.
+let currentPanelKey = null;
+
 function openPanel(key) {
   const p = PANELS[key]; if (!p) return;
   panelTitle.textContent = p.title;
@@ -3189,15 +3247,19 @@ function openPanel(key) {
   panelBody.innerHTML = p.render();
   p.bind();
   document.body.classList.add('panel-open');
-  // Show the floating positioning pad for logo / text panels
-  if (key === 'logo') showPositioningPad('logo');
-  else if (key === 'thermo' || key === 'embroidery') showPositioningPad('text');
-  else hidePositioningPad();
+  currentPanelKey = key;
+  // While a panel is OPEN the pad stays hidden — it would overlap the panel.
+  hidePositioningPad();
 }
 document.getElementById('close-panel').addEventListener('click', () => {
   document.body.classList.remove('panel-open');
   state.text.mode = null;
-  hidePositioningPad();
+  // Reveal the positioning pad ONLY after closing a logo / text panel,
+  // so the customer can place the decal directly on the slipper view.
+  if (currentPanelKey === 'logo') showPositioningPad('logo');
+  else if (currentPanelKey === 'thermo' || currentPanelKey === 'embroidery') showPositioningPad('text');
+  else hidePositioningPad();
+  currentPanelKey = null;
 });
 
 // =====================================================================
