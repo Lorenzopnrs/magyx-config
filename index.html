@@ -341,6 +341,23 @@
     transition: transform 60ms ease;
   }
   .drag-pad:active .drag-pad-handle { transform: translate(-50%, -50%) scale(1.15); cursor: grabbing; }
+  /* Vertical (90°-rotated) orientation of the positioning pad */
+  .drag-pad.vertical { aspect-ratio: 1 / 2; }
+  .drag-pad.vertical::before { width: 70%; height: 60%; border-radius: 35% 35% 50% 50% / 40% 40% 60% 60%; }
+  .pad-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .pad-rotate {
+    width: 26px; height: 26px; border-radius: 7px;
+    border: 1px solid var(--border); background: var(--card);
+    cursor: pointer; display: grid; place-items: center;
+    color: var(--muted); font-size: 13px; transition: all 150ms ease;
+  }
+  .pad-rotate:hover { border-color: var(--accent); color: var(--accent); }
+  .pad-labels-v {
+    display: flex; flex-direction: column; justify-content: space-between;
+    font-size: 10px; color: var(--muted); letter-spacing: 1px;
+    position: absolute; right: -2px; top: 0; bottom: 0;
+    padding: 4px 0; text-align: right; pointer-events: none;
+  }
   /* Dark mode versions of the logo/text positioning pad */
   body.dark .drag-pad {
     background: linear-gradient(135deg, #20262300 0%, #161B19 100%);
@@ -694,6 +711,7 @@ const state = {
   edition: 'classique',
   sizes: ['oneSize'],   // multi-select: 'enfant', 'femme', 'homme', 'oneSize'
   quantity: 100,
+  padVertical: false,   // orientation of the logo/text positioning pad
   signature: {
     method: 'type',     // 'type' | 'draw' | 'upload'
     typedName: '',      // text from "Saisir" tab
@@ -1573,8 +1591,11 @@ const PANELS = {
         </div>
       </div>
       <div class="field">
-        <label class="field-label">Position — glissez le logo</label>
-        <div class="drag-pad" id="logo-pad">
+        <div class="pad-head">
+          <label class="field-label" style="margin-bottom:0">Position — glissez le logo</label>
+          <button class="pad-rotate" id="logo-pad-rotate" title="Pivoter le module 90°">⟳</button>
+        </div>
+        <div class="drag-pad ${state.padVertical?'vertical':''}" id="logo-pad">
           <div class="drag-pad-grid"></div>
           <div class="drag-pad-handle" id="logo-handle"></div>
         </div>
@@ -1635,12 +1656,19 @@ const PANELS = {
         applyLogoBgRemoval();
       });
 
-      // Drag pad — free 2D positioning
+      // Drag pad — free 2D positioning. When `padVertical` is on, the pad
+      // is rotated 90°: its visual Y axis drives logo.x (heel↔toe) and its
+      // visual X axis drives logo.y (lateral).
       const pad = document.getElementById('logo-pad');
       const handle = document.getElementById('logo-handle');
       const updateHandle = () => {
-        handle.style.left = (state.logo.x * 100) + '%';
-        handle.style.top  = (state.logo.y * 100) + '%';
+        if (state.padVertical) {
+          handle.style.left = (state.logo.y * 100) + '%';
+          handle.style.top  = (state.logo.x * 100) + '%';
+        } else {
+          handle.style.left = (state.logo.x * 100) + '%';
+          handle.style.top  = (state.logo.y * 100) + '%';
+        }
       };
       updateHandle();
       let padDragging = false;
@@ -1648,8 +1676,15 @@ const PANELS = {
         const r = pad.getBoundingClientRect();
         const cx = (e.touches ? e.touches[0].clientX : e.clientX) - r.left;
         const cy = (e.touches ? e.touches[0].clientY : e.clientY) - r.top;
-        state.logo.x = Math.max(0, Math.min(1, cx / r.width));
-        state.logo.y = Math.max(0, Math.min(1, cy / r.height));
+        const fx = Math.max(0, Math.min(1, cx / r.width));
+        const fy = Math.max(0, Math.min(1, cy / r.height));
+        if (state.padVertical) {
+          state.logo.x = fy;   // vertical axis = heel↔toe
+          state.logo.y = fx;   // horizontal axis = lateral
+        } else {
+          state.logo.x = fx;
+          state.logo.y = fy;
+        }
         updateHandle();
         rebuildLogoDecal();
       };
@@ -1659,6 +1694,12 @@ const PANELS = {
       pad.addEventListener('touchstart', (e) => { padDragging = true; setFromEvent(e); });
       pad.addEventListener('touchmove', (e) => { if (padDragging) { setFromEvent(e); e.preventDefault(); } }, { passive: false });
       pad.addEventListener('touchend', () => { padDragging = false; });
+
+      const padRotateBtn = document.getElementById('logo-pad-rotate');
+      if (padRotateBtn) padRotateBtn.addEventListener('click', () => {
+        state.padVertical = !state.padVertical;
+        openPanel('logo');
+      });
 
       const sc = document.getElementById('logo-scale');
       const scVal = document.getElementById('logo-scale-val');
@@ -1959,7 +2000,7 @@ const PANELS = {
           ctx.lineWidth = 2.2;
           ctx.lineCap = 'round';
           ctx.lineJoin = 'round';
-          ctx.strokeStyle = '#1A2C5C';
+          ctx.strokeStyle = document.body.classList.contains('dark') ? '#F2F2EE' : '#1A2C5C';
           // Re-paint existing drawing
           if (s.drawDataUrl) {
             const im = new Image();
@@ -2377,10 +2418,34 @@ function renderTypedSignaturePng(name, fontKey) {
   return c.toDataURL('image/png');
 }
 
-function getActiveSignaturePng() {
+// Recolor every opaque pixel of a signature PNG to dark ink, so a
+// signature drawn in white (dark mode) is still visible on the white PDF.
+function normalizeSignatureInk(dataUrl) {
+  return new Promise((resolve) => {
+    const im = new Image();
+    im.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = im.width; c.height = im.height;
+      const ctx = c.getContext('2d');
+      ctx.drawImage(im, 0, 0);
+      const img = ctx.getImageData(0, 0, c.width, c.height);
+      const d = img.data;
+      for (let i = 0; i < d.length; i += 4) {
+        if (d[i + 3] > 10) { d[i] = 26; d[i + 1] = 44; d[i + 2] = 92; } // → #1A2C5C
+      }
+      ctx.putImageData(img, 0, 0);
+      resolve(c.toDataURL('image/png'));
+    };
+    im.onerror = () => resolve(dataUrl);
+    im.src = dataUrl;
+  });
+}
+
+// Returns a Promise resolving to a PDF-ready (dark ink) signature PNG.
+async function getActiveSignaturePng() {
   const s = state.signature;
   if (s.method === 'type' && s.typedName.trim()) return renderTypedSignaturePng(s.typedName.trim(), s.typedFont);
-  if (s.method === 'draw' && s.drawDataUrl)      return s.drawDataUrl;
+  if (s.method === 'draw' && s.drawDataUrl)      return await normalizeSignatureInk(s.drawDataUrl);
   if (s.method === 'upload' && s.uploadDataUrl)  return s.uploadDataUrl;
   return null;
 }
@@ -2537,7 +2602,7 @@ async function generateBAT() {
   const snapshot = await captureHeroSnapshot();
 
   if (status) status.textContent = '… Génération du PDF';
-  const sigPng = getActiveSignaturePng();
+  const sigPng = await getActiveSignaturePng();
   const today = new Date();
   const dateFr = today.toLocaleDateString('fr-FR');
   const refNum = 'MGX-' + today.getFullYear().toString().slice(2)
@@ -2841,8 +2906,11 @@ function textPanelHTML() {
       </div>
     </div>
     <div class="field">
-      <label class="field-label">Position — glissez le texte</label>
-      <div class="drag-pad" id="text-pad">
+      <div class="pad-head">
+        <label class="field-label" style="margin-bottom:0">Position — glissez le texte</label>
+        <button class="pad-rotate" id="text-pad-rotate" title="Pivoter le module 90°">⟳</button>
+      </div>
+      <div class="drag-pad ${state.padVertical?'vertical':''}" id="text-pad">
         <div class="drag-pad-grid"></div>
         <div class="drag-pad-handle" id="text-handle"></div>
       </div>
@@ -2894,11 +2962,17 @@ function bindTextPanel(mode) {
   });
 
   // Drag pad — 2D positioning of the text on the slipper top.
+  // Supports the same 90°-rotated (vertical) mode as the logo pad.
   const pad = document.getElementById('text-pad');
   const handle = document.getElementById('text-handle');
   const updateHandle = () => {
-    handle.style.left = (state.text.x * 100) + '%';
-    handle.style.top  = (state.text.y * 100) + '%';
+    if (state.padVertical) {
+      handle.style.left = (state.text.y * 100) + '%';
+      handle.style.top  = (state.text.x * 100) + '%';
+    } else {
+      handle.style.left = (state.text.x * 100) + '%';
+      handle.style.top  = (state.text.y * 100) + '%';
+    }
   };
   updateHandle();
   let padDragging = false;
@@ -2906,11 +2980,24 @@ function bindTextPanel(mode) {
     const r = pad.getBoundingClientRect();
     const cx = (e.touches ? e.touches[0].clientX : e.clientX) - r.left;
     const cy = (e.touches ? e.touches[0].clientY : e.clientY) - r.top;
-    state.text.x = Math.max(0, Math.min(1, cx / r.width));
-    state.text.y = Math.max(0, Math.min(1, cy / r.height));
+    const fx = Math.max(0, Math.min(1, cx / r.width));
+    const fy = Math.max(0, Math.min(1, cy / r.height));
+    if (state.padVertical) {
+      state.text.x = fy;
+      state.text.y = fx;
+    } else {
+      state.text.x = fx;
+      state.text.y = fy;
+    }
     updateHandle();
     rebuildTextDecal();
   };
+  const textPadRotateBtn = document.getElementById('text-pad-rotate');
+  if (textPadRotateBtn) textPadRotateBtn.addEventListener('click', () => {
+    state.padVertical = !state.padVertical;
+    const m = state.text.mode;
+    openPanel(m === 'embroidery' ? 'embroidery' : 'thermo');
+  });
   pad.addEventListener('mousedown', (e) => { padDragging = true; setFromEvent(e); });
   window.addEventListener('mousemove', (e) => { if (padDragging) setFromEvent(e); });
   window.addEventListener('mouseup', () => { padDragging = false; });
