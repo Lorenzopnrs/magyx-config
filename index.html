@@ -625,9 +625,108 @@
     border-radius: 50%; animation: spin 800ms linear infinite;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
-  @media (max-width: 1100px) {
+  @media (max-width: 1100px) and (min-width: 769px) {
     .stage { grid-template-columns: 200px 1fr 200px; padding: 16px; gap: 14px; }
     .panel { width: 360px; }
+  }
+
+  /* ============================================================
+     MOBILE / TABLET PORTRAIT — full responsive layout
+     ============================================================ */
+  @media (max-width: 768px) {
+    /* Header: compact, drop the centered tagline */
+    .top-bar { height: 54px; padding: 0 14px; }
+    .top-bar .center { display: none; }
+    .top-bar .meta { display: none; }
+    .brand-mark { font-size: 18px; }
+    .brand-mark .x-icon { width: 22px; height: 22px; }
+    .theme-toggle { width: 36px; height: 36px; }
+
+    /* Stage becomes a vertical scrolling column */
+    .stage {
+      top: 54px; bottom: 60px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 12px;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* Canvas first, full width, fixed height */
+    .canvas-wrap {
+      order: 1;
+      width: 100%;
+      height: 46vh;
+      min-height: 280px;
+      flex-shrink: 0;
+    }
+    .canvas-wrap canvas { touch-action: none; }
+    body.panel-open .canvas-wrap { transform: none; }
+
+    /* Both tile columns → 2-column grids stacked below the canvas */
+    .tiles-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      width: 100%;
+      flex-direction: initial;
+      justify-content: initial;
+    }
+    .tiles-col.tiles-left  { order: 2; }
+    .tiles-col.tiles-right { order: 3; opacity: 1 !important; pointer-events: auto !important; transform: none !important; }
+    .tile { padding: 13px 12px; }
+    .tile .icon { width: 34px; height: 34px; }
+    .tile .label { font-size: 10.5px; }
+    .tile .desc { font-size: 10px; }
+
+    /* Panel: full-width bottom sheet */
+    .panel {
+      top: auto; left: 0; right: 0; bottom: 0;
+      width: 100%;
+      height: 82vh;
+      border-left: none;
+      border-top: 1px solid var(--border);
+      border-radius: 20px 20px 0 0;
+      transform: translateY(105%);
+      box-shadow: 0 -16px 50px rgba(0,0,0,0.18);
+    }
+    body.panel-open .panel { transform: translateY(0); }
+    .panel-head { padding: 18px 20px 14px; }
+    .panel-body { padding: 18px 20px; }
+
+    /* Badges bar: compact, evenly spread */
+    .badges-bar { height: 60px; }
+    .badge { padding: 0 6px; gap: 7px; }
+    .badge .b-icon { width: 28px; height: 28px; }
+    .badge .b-icon svg { width: 15px; height: 15px; }
+    .badge .b-text { font-size: 8.5px; letter-spacing: 0.5px; }
+
+    /* Positioning pad popup: fixed, floats ABOVE the bottom-sheet panel
+       so it stays usable while the Logo/Texte panel is open. */
+    .pad-popup {
+      position: fixed;
+      width: calc(100% - 24px);
+      left: 12px; right: 12px;
+      bottom: 70px;
+      z-index: 60;
+      padding: 12px;
+    }
+    .pad-popup .drag-pad { aspect-ratio: 2.2 / 1; }
+    .pad-popup .drag-pad.vertical { aspect-ratio: 2 / 1; }
+
+    /* Model toggle a touch smaller */
+    .model-toggle button { padding: 7px 14px; font-size: 11px; }
+
+    /* Swatch grids comfortable for thumbs */
+    .swatch-grid { grid-template-columns: repeat(6, 1fr); gap: 8px; }
+  }
+
+  /* Very small phones */
+  @media (max-width: 400px) {
+    .tiles-col { grid-template-columns: 1fr; }
+    .canvas-wrap { height: 42vh; }
+    .badge .b-text { font-size: 8px; }
   }
 </style>
 </head>
