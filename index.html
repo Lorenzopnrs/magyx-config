@@ -296,6 +296,20 @@
     transition: all 150ms ease;
   }
   .asset-remove:hover { background: #B22222; color: #fff; border-color: #B22222; }
+  /* Dark mode — transparent card with white borders/text instead of a jarring white block */
+  body.dark .asset-loaded {
+    background: transparent;
+    border-color: rgba(255,255,255,0.5);
+  }
+  body.dark .asset-loaded .asset-info strong { color: #F2F2EE; }
+  body.dark .asset-loaded .asset-info span   { color: rgba(242,242,238,0.7); }
+  body.dark .asset-loaded img { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.3); }
+  body.dark .asset-remove {
+    background: transparent;
+    border-color: rgba(255,255,255,0.5);
+    color: #F2F2EE;
+  }
+  body.dark .asset-remove:hover { background: #B22222; border-color: #B22222; color: #fff; }
   input[type=file] { display: none; }
   .slider-wrap { display: flex; align-items: center; gap: 12px; }
   input[type=range] {
@@ -352,11 +366,32 @@
     color: var(--muted); font-size: 13px; transition: all 150ms ease;
   }
   .pad-rotate:hover { border-color: var(--accent); color: var(--accent); }
-  .pad-labels-v {
-    display: flex; flex-direction: column; justify-content: space-between;
-    font-size: 10px; color: var(--muted); letter-spacing: 1px;
-    position: absolute; right: -2px; top: 0; bottom: 0;
-    padding: 4px 0; text-align: right; pointer-events: none;
+
+  /* Floating positioning-pad popup, anchored bottom-right of the canvas */
+  .pad-popup {
+    position: absolute;
+    bottom: 16px; right: 16px;
+    width: 196px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: var(--shadow-md);
+    padding: 12px;
+    z-index: 9;
+    opacity: 0; pointer-events: none;
+    transform: translateY(12px) scale(0.97);
+    transition: opacity 240ms ease, transform 240ms ease;
+  }
+  .pad-popup.show { opacity: 1; pointer-events: auto; transform: translateY(0) scale(1); }
+  .pad-popup-title {
+    font-size: 10px; letter-spacing: 1.5px; font-weight: 700;
+    color: var(--muted); text-transform: uppercase;
+  }
+  .pad-popup .drag-pad { aspect-ratio: 2 / 1; }
+  .pad-popup .drag-pad.vertical { aspect-ratio: 1 / 1.4; }
+  .pad-popup-labels {
+    display: flex; justify-content: space-between;
+    font-size: 9px; color: var(--muted); margin-top: 5px; letter-spacing: 1px;
   }
   /* Dark mode versions of the logo/text positioning pad */
   body.dark .drag-pad {
@@ -650,6 +685,21 @@
     </div>
     <div class="model-loader" id="model-loader"><div class="spinner"></div></div>
     <div class="canvas-hint">GLISSEZ POUR PIVOTER • MOLETTE POUR ZOOMER</div>
+
+    <!-- Floating positioning pad — shown when Logo / Thermo / Broderie panel is open -->
+    <div class="pad-popup" id="pad-popup">
+      <div class="pad-head">
+        <span class="pad-popup-title" id="pad-popup-title">POSITION DU LOGO</span>
+        <button class="pad-rotate" id="pad-popup-rotate" title="Pivoter le module 90°">⟳</button>
+      </div>
+      <div class="drag-pad" id="shared-pad">
+        <div class="drag-pad-grid"></div>
+        <div class="drag-pad-handle" id="shared-pad-handle"></div>
+      </div>
+      <div class="pad-popup-labels" id="pad-popup-labels">
+        <span>TALON</span><span>HAUT DE PIED</span><span>ORTEILS</span>
+      </div>
+    </div>
   </div>
 
   <aside class="tiles-col tiles-right">
@@ -1590,18 +1640,8 @@ const PANELS = {
           <div class="toggle ${state.logo.removeBg?'on':''}" id="logo-bg-toggle"></div>
         </div>
       </div>
-      <div class="field">
-        <div class="pad-head">
-          <label class="field-label" style="margin-bottom:0">Position — glissez le logo</label>
-          <button class="pad-rotate" id="logo-pad-rotate" title="Pivoter le module 90°">⟳</button>
-        </div>
-        <div class="drag-pad ${state.padVertical?'vertical':''}" id="logo-pad">
-          <div class="drag-pad-grid"></div>
-          <div class="drag-pad-handle" id="logo-handle"></div>
-        </div>
-        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:6px;letter-spacing:1px">
-          <span>TALON</span><span>HAUT DE PIED</span><span>ORTEILS</span>
-        </div>
+      <div class="field" style="font-size:11px;color:var(--muted);font-style:italic">
+        Glissez le logo via le module de positionnement en bas à droite de l'aperçu 3D.
       </div>
       <div class="field">
         <label class="field-label">Taille — <span id="logo-scale-val">${Math.round(state.logo.scale*100)}%</span></label>
@@ -1656,50 +1696,8 @@ const PANELS = {
         applyLogoBgRemoval();
       });
 
-      // Drag pad — free 2D positioning. When `padVertical` is on, the pad
-      // is rotated 90°: its visual Y axis drives logo.x (heel↔toe) and its
-      // visual X axis drives logo.y (lateral).
-      const pad = document.getElementById('logo-pad');
-      const handle = document.getElementById('logo-handle');
-      const updateHandle = () => {
-        if (state.padVertical) {
-          handle.style.left = (state.logo.y * 100) + '%';
-          handle.style.top  = (state.logo.x * 100) + '%';
-        } else {
-          handle.style.left = (state.logo.x * 100) + '%';
-          handle.style.top  = (state.logo.y * 100) + '%';
-        }
-      };
-      updateHandle();
-      let padDragging = false;
-      const setFromEvent = (e) => {
-        const r = pad.getBoundingClientRect();
-        const cx = (e.touches ? e.touches[0].clientX : e.clientX) - r.left;
-        const cy = (e.touches ? e.touches[0].clientY : e.clientY) - r.top;
-        const fx = Math.max(0, Math.min(1, cx / r.width));
-        const fy = Math.max(0, Math.min(1, cy / r.height));
-        if (state.padVertical) {
-          state.logo.x = fy;   // vertical axis = heel↔toe
-          state.logo.y = fx;   // horizontal axis = lateral
-        } else {
-          state.logo.x = fx;
-          state.logo.y = fy;
-        }
-        updateHandle();
-        rebuildLogoDecal();
-      };
-      pad.addEventListener('mousedown', (e) => { padDragging = true; setFromEvent(e); });
-      window.addEventListener('mousemove', (e) => { if (padDragging) setFromEvent(e); });
-      window.addEventListener('mouseup', () => { padDragging = false; });
-      pad.addEventListener('touchstart', (e) => { padDragging = true; setFromEvent(e); });
-      pad.addEventListener('touchmove', (e) => { if (padDragging) { setFromEvent(e); e.preventDefault(); } }, { passive: false });
-      pad.addEventListener('touchend', () => { padDragging = false; });
-
-      const padRotateBtn = document.getElementById('logo-pad-rotate');
-      if (padRotateBtn) padRotateBtn.addEventListener('click', () => {
-        state.padVertical = !state.padVertical;
-        openPanel('logo');
-      });
+      // The positioning pad is now the shared floating popup (bottom-right
+      // of the canvas) — activated by openPanel() for the logo target.
 
       const sc = document.getElementById('logo-scale');
       const scVal = document.getElementById('logo-scale-val');
@@ -1719,7 +1717,7 @@ const PANELS = {
         state.logo.x = 0.5; state.logo.y = 0.5; state.logo.scale = 0.45; state.logo.rotation = 180;
         sc.value = 0.45; rt.value = 180;
         scVal.textContent = '45%'; rtVal.textContent = '180°';
-        updateHandle();
+        if (typeof updateSharedPadHandle === 'function') updateSharedPadHandle();
         redrawLogoCanvas();
         rebuildLogoDecal();
       });
@@ -2905,18 +2903,8 @@ function textPanelHTML() {
         <span style="font-size:13px;color:var(--muted)">Couleur sur-mesure</span>
       </div>
     </div>
-    <div class="field">
-      <div class="pad-head">
-        <label class="field-label" style="margin-bottom:0">Position — glissez le texte</label>
-        <button class="pad-rotate" id="text-pad-rotate" title="Pivoter le module 90°">⟳</button>
-      </div>
-      <div class="drag-pad ${state.padVertical?'vertical':''}" id="text-pad">
-        <div class="drag-pad-grid"></div>
-        <div class="drag-pad-handle" id="text-handle"></div>
-      </div>
-      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:6px;letter-spacing:1px">
-        <span>TALON</span><span>HAUT DE PIED</span><span>ORTEILS</span>
-      </div>
+    <div class="field" style="font-size:11px;color:var(--muted);font-style:italic">
+      Glissez le texte via le module de positionnement en bas à droite de l'aperçu 3D.
     </div>
     <div class="field">
       <label class="field-label">Taille — <span id="text-scale-val">${Math.round(state.text.scale*100)}%</span></label>
@@ -2961,49 +2949,8 @@ function bindTextPanel(mode) {
     redrawTextCanvas();
   });
 
-  // Drag pad — 2D positioning of the text on the slipper top.
-  // Supports the same 90°-rotated (vertical) mode as the logo pad.
-  const pad = document.getElementById('text-pad');
-  const handle = document.getElementById('text-handle');
-  const updateHandle = () => {
-    if (state.padVertical) {
-      handle.style.left = (state.text.y * 100) + '%';
-      handle.style.top  = (state.text.x * 100) + '%';
-    } else {
-      handle.style.left = (state.text.x * 100) + '%';
-      handle.style.top  = (state.text.y * 100) + '%';
-    }
-  };
-  updateHandle();
-  let padDragging = false;
-  const setFromEvent = (e) => {
-    const r = pad.getBoundingClientRect();
-    const cx = (e.touches ? e.touches[0].clientX : e.clientX) - r.left;
-    const cy = (e.touches ? e.touches[0].clientY : e.clientY) - r.top;
-    const fx = Math.max(0, Math.min(1, cx / r.width));
-    const fy = Math.max(0, Math.min(1, cy / r.height));
-    if (state.padVertical) {
-      state.text.x = fy;
-      state.text.y = fx;
-    } else {
-      state.text.x = fx;
-      state.text.y = fy;
-    }
-    updateHandle();
-    rebuildTextDecal();
-  };
-  const textPadRotateBtn = document.getElementById('text-pad-rotate');
-  if (textPadRotateBtn) textPadRotateBtn.addEventListener('click', () => {
-    state.padVertical = !state.padVertical;
-    const m = state.text.mode;
-    openPanel(m === 'embroidery' ? 'embroidery' : 'thermo');
-  });
-  pad.addEventListener('mousedown', (e) => { padDragging = true; setFromEvent(e); });
-  window.addEventListener('mousemove', (e) => { if (padDragging) setFromEvent(e); });
-  window.addEventListener('mouseup', () => { padDragging = false; });
-  pad.addEventListener('touchstart', (e) => { padDragging = true; setFromEvent(e); });
-  pad.addEventListener('touchmove', (e) => { if (padDragging) { setFromEvent(e); e.preventDefault(); } }, { passive: false });
-  pad.addEventListener('touchend', () => { padDragging = false; });
+  // Positioning is handled by the shared floating pad popup (bottom-right
+  // of the canvas) — activated by openPanel() for the text target.
 
   const ts = document.getElementById('text-scale');
   const tsv = document.getElementById('text-scale-val');
@@ -3143,11 +3090,95 @@ function openPanel(key) {
   panelBody.innerHTML = p.render();
   p.bind();
   document.body.classList.add('panel-open');
+  // Show the floating positioning pad for logo / text panels
+  if (key === 'logo') showPositioningPad('logo');
+  else if (key === 'thermo' || key === 'embroidery') showPositioningPad('text');
+  else hidePositioningPad();
 }
 document.getElementById('close-panel').addEventListener('click', () => {
   document.body.classList.remove('panel-open');
   state.text.mode = null;
+  hidePositioningPad();
 });
+
+// =====================================================================
+// SHARED POSITIONING PAD (floating popup, bottom-right of the canvas)
+// Controls either the logo or the text decal depending on `padTarget`.
+// =====================================================================
+let padTarget = 'logo';   // 'logo' | 'text'
+
+const padPopup       = document.getElementById('pad-popup');
+const sharedPad      = document.getElementById('shared-pad');
+const sharedPadHandle = document.getElementById('shared-pad-handle');
+const padPopupTitle  = document.getElementById('pad-popup-title');
+const padPopupRotate = document.getElementById('pad-popup-rotate');
+
+function padState() { return padTarget === 'logo' ? state.logo : state.text; }
+function rebuildPadDecal() {
+  if (padTarget === 'logo') rebuildLogoDecal();
+  else rebuildTextDecal();
+}
+
+function updateSharedPadHandle() {
+  const s = padState();
+  // In vertical mode the pad is rotated 90° AND flipped 180° so the
+  // gesture matches a slipper viewed upright (toe up).
+  if (state.padVertical) {
+    sharedPadHandle.style.left = ((1 - s.y) * 100) + '%';
+    sharedPadHandle.style.top  = ((1 - s.x) * 100) + '%';
+  } else {
+    sharedPadHandle.style.left = (s.x * 100) + '%';
+    sharedPadHandle.style.top  = (s.y * 100) + '%';
+  }
+}
+
+function applyPadOrientation() {
+  sharedPad.classList.toggle('vertical', state.padVertical);
+  updateSharedPadHandle();
+}
+
+(function bindSharedPad() {
+  let dragging = false;
+  const setFromEvent = (e) => {
+    const r = sharedPad.getBoundingClientRect();
+    const cx = (e.touches ? e.touches[0].clientX : e.clientX) - r.left;
+    const cy = (e.touches ? e.touches[0].clientY : e.clientY) - r.top;
+    const fx = Math.max(0, Math.min(1, cx / r.width));
+    const fy = Math.max(0, Math.min(1, cy / r.height));
+    const s = padState();
+    if (state.padVertical) {
+      // 90° rotation + 180° flip
+      s.x = 1 - fy;   // vertical axis = heel↔toe (inverted)
+      s.y = 1 - fx;   // horizontal axis = lateral (inverted)
+    } else {
+      s.x = fx;
+      s.y = fy;
+    }
+    updateSharedPadHandle();
+    rebuildPadDecal();
+  };
+  sharedPad.addEventListener('mousedown', (e) => { dragging = true; setFromEvent(e); });
+  window.addEventListener('mousemove', (e) => { if (dragging) setFromEvent(e); });
+  window.addEventListener('mouseup', () => { dragging = false; });
+  sharedPad.addEventListener('touchstart', (e) => { dragging = true; setFromEvent(e); }, { passive: true });
+  sharedPad.addEventListener('touchmove', (e) => { if (dragging) { setFromEvent(e); e.preventDefault(); } }, { passive: false });
+  sharedPad.addEventListener('touchend', () => { dragging = false; });
+
+  padPopupRotate.addEventListener('click', () => {
+    state.padVertical = !state.padVertical;
+    applyPadOrientation();
+  });
+})();
+
+function showPositioningPad(target) {
+  padTarget = target;
+  padPopupTitle.textContent = target === 'logo' ? 'POSITION DU LOGO' : 'POSITION DU TEXTE';
+  applyPadOrientation();
+  padPopup.classList.add('show');
+}
+function hidePositioningPad() {
+  padPopup.classList.remove('show');
+}
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') document.getElementById('close-panel').click();
 });
