@@ -702,8 +702,8 @@ const state = {
     uploadDataUrl: null,// PNG dataURL from uploaded image
     customer: { name: '', company: '', email: '', phone: '' }
   },
-  logo: { image: null, originalImage: null, scale: 0.45, x: 0.5, y: 0.5, rotation: 0, removeBg: true },
-  text: { value: '', font: 'serif', mode: null, scale: 1.0, rotation: 0, x: 0.5, y: 0.5, color: '#1C1C1C' },
+  logo: { image: null, originalImage: null, scale: 0.45, x: 0.5, y: 0.5, rotation: 180, removeBg: true },
+  text: { value: '', font: 'serif', mode: null, scale: 1.0, rotation: 180, x: 0.5, y: 0.5, color: '#1C1C1C' },
   target: {
     pipingColor: new THREE.Color('#1C1C1C'),
     soleColor: new THREE.Color('#FFFFFF'),
@@ -1675,9 +1675,9 @@ const PANELS = {
         rebuildLogoDecal();
       });
       document.getElementById('logo-reset').addEventListener('click', () => {
-        state.logo.x = 0.5; state.logo.y = 0.5; state.logo.scale = 0.45; state.logo.rotation = 0;
-        sc.value = 0.45; rt.value = 0;
-        scVal.textContent = '45%'; rtVal.textContent = '0°';
+        state.logo.x = 0.5; state.logo.y = 0.5; state.logo.scale = 0.45; state.logo.rotation = 180;
+        sc.value = 0.45; rt.value = 180;
+        scVal.textContent = '45%'; rtVal.textContent = '180°';
         updateHandle();
         redrawLogoCanvas();
         rebuildLogoDecal();
@@ -2397,87 +2397,46 @@ const SIZE_LABELS = {
 // (built on demand for the right). Falls back to mirrored-single if the
 // right GLB isn't loaded yet.
 async function captureHeroSnapshot() {
-  const leftKey  = currentModel;
-  const rightKey = currentModel + '_right';
-  const rightLoaded = MODELS[rightKey] && MODELS[rightKey].group;
+  const leftKey = currentModel;
 
-  const savedPos = camera.position.clone();
   const savedAspect = camera.aspect;
   const savedRotX = slipper.rotation.x;
   const savedRotY = slipper.rotation.y;
+  const savedPos = camera.position.clone();
   const oldW = renderer.domElement.width;
   const oldH = renderer.domElement.height;
 
-  // Save left group + accessories
-  const leftGroup = MODELS[leftKey].group;
-  const leftSavedPos = leftGroup.position.clone();
-  const leftSavedVis = leftGroup.visible;
-  const leftPipingVis = pipingGroups[leftKey] ? pipingGroups[leftKey].visible : false;
-  const leftPipingSavedX = pipingGroups[leftKey] ? pipingGroups[leftKey].position.x : 0;
-  const leftLogoSavedX   = logoSlot.meshes[leftKey] ? logoSlot.meshes[leftKey].position.x : 0;
-  const leftTextSavedX   = textSlot.meshes[leftKey] ? textSlot.meshes[leftKey].position.x : 0;
-
-  let rightGroup, rightSavedPos, rightSavedVis, rightPipingVis, rightPipingSavedX;
-  if (rightLoaded) {
-    rightGroup = MODELS[rightKey].group;
-    rightSavedPos = rightGroup.position.clone();
-    rightSavedVis = rightGroup.visible;
-    rightPipingVis = pipingGroups[rightKey] ? pipingGroups[rightKey].visible : false;
-    rightPipingSavedX = pipingGroups[rightKey] ? pipingGroups[rightKey].position.x : 0;
-  }
-
-  // Top-down view, slipper container not rotated
+  // Container not rotated for the top-down shot
   slipper.rotation.set(0, 0, 0);
   slipper.updateMatrixWorld(true);
 
-  // Reapply texture redraw so both lefts and rights match current state
+  // Make sure the texture reflects the current customization
   redrawSlipperTexture();
 
-  // Position left + right side by side. The piping and decal meshes are
-  // children of `slipper` (not of the GLB group), so we must offset them
-  // manually to keep them attached to their respective slipper.
-  const xOffset = 1.6;
-  if (rightLoaded) {
-    // LEFT: shift everything related to it by -xOffset
-    leftGroup.position.x = leftSavedPos.x - xOffset;
-    if (pipingGroups[leftKey])    pipingGroups[leftKey].position.x = leftPipingSavedX - xOffset;
-    if (logoSlot.meshes[leftKey]) logoSlot.meshes[leftKey].position.x = leftLogoSavedX - xOffset;
-    if (textSlot.meshes[leftKey]) textSlot.meshes[leftKey].position.x = leftTextSavedX - xOffset;
-    leftGroup.visible = true;
-    if (pipingGroups[leftKey]) pipingGroups[leftKey].visible = true;
-
-    // RIGHT: shift the group + its piping by +xOffset.
-    // Right-side decals are built AFTER this offset, so they're already at the right place.
-    rightGroup.position.x = rightSavedPos.x + xOffset;
-    if (pipingGroups[rightKey]) pipingGroups[rightKey].position.x = rightPipingSavedX + xOffset;
-    rightGroup.visible = true;
-    if (pipingGroups[rightKey]) pipingGroups[rightKey].visible = true;
-
-    // Build right-side decals (logo + text)
-    buildDecalForRightModel(logoSlot, state.logo.x, state.logo.y, state.logo.rotation, state.logo.scale);
-    buildDecalForRightModel(textSlot, state.text.x, state.text.y, state.text.rotation, state.text.scale * 0.85);
-  }
-
   // ── ORTHOGRAPHIC top-down camera ──
-  // A perspective camera distorts a flat object seen from above (the toe
-  // looks bigger than the heel). An orthographic camera gives a perfectly
-  // flat, distortion-free "product photo from directly above" look —
-  // exactly like the reference photo.
-  const w = 1600, h = 900;
+  // Orthographic = zero perspective distortion → a clean, flat
+  // "product photo from directly above" of the customer's slipper.
+  // Portrait aspect — a single slipper, big, toe pointing UP.
+  const w = 900, h = 1500;
   const aspect = w / h;
-  // The pair spans ~6 units wide (Z length 3 + offsets) and ~4 units in X.
-  // Frustum sized to fit the pair with a little padding.
-  const frustumW = 7.2;                       // horizontal world units shown
-  const frustumH = frustumW / aspect;
+  // Frustum height covers the slipper length (~3 units) with light padding.
+  const frustumH = 3.5;
+  const frustumW = frustumH * aspect;
   const orthoCam = new THREE.OrthographicCamera(
     -frustumW / 2, frustumW / 2,
      frustumH / 2, -frustumH / 2,
      0.1, 50
   );
   orthoCam.position.set(0, 12, 0);
-  orthoCam.up.set(0, 0, -1);                  // so -Z (toe) points UP in the image
+  // up = +Z so that +Z appears at the TOP of the image. The slipper's toe
+  // is at -Z, so we also rotate the slipper container 180° around Y for
+  // the shot → toe ends up pointing UP.
+  orthoCam.up.set(0, 0, 1);
   orthoCam.lookAt(0, 0, 0);
   orthoCam.updateProjectionMatrix();
+
+  slipper.rotation.y = Math.PI;          // toe up
+  slipper.updateMatrixWorld(true);
 
   renderer.setSize(w, h, false);
   renderer.setClearColor(0xffffff, 1);
@@ -2493,42 +2452,7 @@ async function captureHeroSnapshot() {
   camera.lookAt(0, 0.95, 0);
   slipper.rotation.x = savedRotX;
   slipper.rotation.y = savedRotY;
-
-  leftGroup.position.copy(leftSavedPos);
-  leftGroup.visible = leftSavedVis;
-  if (pipingGroups[leftKey])    { pipingGroups[leftKey].position.x = leftPipingSavedX; pipingGroups[leftKey].visible = leftPipingVis; }
-  if (logoSlot.meshes[leftKey]) logoSlot.meshes[leftKey].position.x = leftLogoSavedX;
-  if (textSlot.meshes[leftKey]) textSlot.meshes[leftKey].position.x = leftTextSavedX;
-
-  if (rightLoaded) {
-    rightGroup.position.copy(rightSavedPos);
-    rightGroup.visible = rightSavedVis;
-    if (pipingGroups[rightKey]) {
-      pipingGroups[rightKey].position.x = rightPipingSavedX;
-      pipingGroups[rightKey].visible = rightPipingVis;
-    }
-    // Remove the right-side decals (kept only for the snapshot)
-    removeDecalForKey(logoSlot, rightKey);
-    removeDecalForKey(textSlot, rightKey);
-  }
-
-  // If right isn't loaded yet, compose a mirrored fallback from the single render
-  if (!rightLoaded) {
-    return new Promise((resolve) => {
-      const im = new Image();
-      im.onload = () => {
-        const pc = document.createElement('canvas');
-        pc.width = w; pc.height = h;
-        const pctx = pc.getContext('2d');
-        pctx.fillStyle = '#FFFFFF';
-        pctx.fillRect(0, 0, w, h);
-        // Single slipper centered; mirror copy beside
-        pctx.drawImage(im, 0, 0);
-        resolve(pc.toDataURL('image/png'));
-      };
-      im.src = dataUrl;
-    });
-  }
+  slipper.updateMatrixWorld(true);
 
   return dataUrl;
 }
@@ -2615,8 +2539,10 @@ async function generateBAT() {
               + '-' + Math.floor(Math.random() * 9000 + 1000);
 
   const { jsPDF } = window.jspdf;
-  const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
-  const PW = 210, PH = 297;
+  // Taller-than-A4 page so the slipper can be shown LARGE — it's fine
+  // for the viewer to scroll down for the spec sheet & validation.
+  const PW = 210, PH = 470;
+  const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: [PW, PH] });
   const M = 16;
 
   // Brand color (MAGYX olive)
@@ -2661,11 +2587,13 @@ async function generateBAT() {
   // ─────────────────────────────────────────────────────────────
   // HERO IMAGE — Pair of slippers, top-down view
   // ─────────────────────────────────────────────────────────────
-  const heroY = 38;
-  const heroW = PW - 2 * M;
-  // captureHeroSnapshot renders at 1600 × 900 → aspect 1.78
-  const heroH = heroW / 1.78;
-  pdf.addImage(snapshot, 'PNG', M, heroY, heroW, heroH);
+  const heroY = 40;
+  // captureHeroSnapshot renders portrait at 900 × 1500 → aspect 0.6
+  // Show it BIG: ~75% of page width, centered. Height follows the aspect.
+  const heroW = (PW - 2 * M) * 0.78;
+  const heroH = heroW / 0.6;
+  const heroX = (PW - heroW) / 2;
+  pdf.addImage(snapshot, 'PNG', heroX, heroY, heroW, heroH);
 
   // Caption below the image
   const capY = heroY + heroH + 4;
