@@ -123,6 +123,9 @@
   .tile .icon svg { width: 18px; height: 18px; }
   .tile .text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
   .tile .label { font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+  /* Desktop = full label, mobile = short label (toggled in the mobile media query) */
+  .tile .lbl-short { display: none; }
+  .tile .lbl-full  { display: inline; }
   .tile .desc { font-size: 10.5px; color: var(--muted); line-height: 1.3; }
   .canvas-wrap {
     position: relative;
@@ -679,6 +682,9 @@
     .tile .icon { width: 34px; height: 34px; }
     .tile .label { font-size: 10.5px; }
     .tile .desc { font-size: 10px; }
+    /* Mobile uses the short labels */
+    .tile .lbl-full  { display: none; }
+    .tile .lbl-short { display: inline; }
 
     /* Panel: full-width bottom sheet */
     .panel {
@@ -790,23 +796,23 @@
   <aside class="tiles-col tiles-left">
     <div class="tile" data-panel="fabric">
       <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2v20"/></svg></div>
-      <div class="text"><span class="label">Tissu</span><span class="desc">Couleur du tissu</span></div>
+      <div class="text"><span class="label"><span class="lbl-full">Couleur du Tissu</span><span class="lbl-short">Tissu</span></span><span class="desc">Large choix</span></div>
     </div>
     <div class="tile" data-panel="piping">
       <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 0 1 18 0M3 12a9 9 0 0 0 18 0"/></svg></div>
-      <div class="text"><span class="label">Liséré</span><span class="desc">Couleur du liséré</span></div>
+      <div class="text"><span class="label"><span class="lbl-full">Couleur du Liséré</span><span class="lbl-short">Liséré</span></span><span class="desc">Bordure soignée</span></div>
     </div>
     <div class="tile" data-panel="logo">
       <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></div>
-      <div class="text"><span class="label">Logo</span><span class="desc">Votre identité</span></div>
+      <div class="text"><span class="label"><span class="lbl-full">Ajout du Logo</span><span class="lbl-short">Logo</span></span><span class="desc">Votre identité</span></div>
     </div>
     <div class="tile" data-panel="thermo">
       <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3 7 7 .5-5.5 4.5 2 7-6.5-4-6.5 4 2-7L2 9.5 9 9z"/></svg></div>
-      <div class="text"><span class="label">Thermo</span><span class="desc">Marquage imprimé</span></div>
+      <div class="text"><span class="label"><span class="lbl-full">Thermo Impression</span><span class="lbl-short">Thermo</span></span><span class="desc">Marquage durable</span></div>
     </div>
     <div class="tile" data-panel="embroidery">
       <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16" stroke-dasharray="3 2"/></svg></div>
-      <div class="text"><span class="label">Broderie</span><span class="desc">Finition cousue</span></div>
+      <div class="text"><span class="label"><span class="lbl-full">Broderie</span><span class="lbl-short">Broderie</span></span><span class="desc">Finition élégante</span></div>
     </div>
   </aside>
 
@@ -838,19 +844,19 @@
   <aside class="tiles-col tiles-right">
     <div class="tile" data-panel="sole">
       <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 18h18M5 18l1-9a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4l1 9"/></svg></div>
-      <div class="text"><span class="label">Semelle</span><span class="desc">Blanche ou noire</span></div>
+      <div class="text"><span class="label"><span class="lbl-full">Couleur de la Semelle</span><span class="lbl-short">Semelle</span></span><span class="desc">Blanche ou noire</span></div>
     </div>
     <div class="tile" data-panel="size">
       <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8h18v8H3zM7 8v4M11 8v4M15 8v4M19 8v4"/></svg></div>
-      <div class="text"><span class="label">Tailles</span><span class="desc">Enfants / femmes / hommes</span></div>
+      <div class="text"><span class="label"><span class="lbl-full">Tailles</span><span class="lbl-short">Tailles</span></span><span class="desc">Enfants / femmes / hommes</span></div>
     </div>
     <div class="tile" data-panel="quantity">
       <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h18v3H3zM3 14h18v3H3z"/><path d="M9 4v3M15 4v3M9 17v3M15 17v3"/></svg></div>
-      <div class="text"><span class="label">Quantité</span><span class="desc">Commande grossiste</span></div>
+      <div class="text"><span class="label"><span class="lbl-full">Quantité</span><span class="lbl-short">Quantité</span></span><span class="desc">Commande grossiste</span></div>
     </div>
     <div class="tile" data-panel="signature">
       <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17c4-2 8-2 12 0s5 0 6-2"/><path d="M9 11l4-4 4 4"/><path d="M13 7v10"/></svg></div>
-      <div class="text"><span class="label">Signature</span><span class="desc">Bon à tirer</span></div>
+      <div class="text"><span class="label"><span class="lbl-full">Validation & Signature</span><span class="lbl-short">Signature</span></span><span class="desc">Bon à tirer</span></div>
     </div>
   </aside>
 
@@ -3236,9 +3242,15 @@ function loadLogo(file) {
 document.querySelectorAll('.tile').forEach(t => {
   t.addEventListener('click', () => openPanel(t.dataset.panel));
 });
-// Tracks which panel is currently open, so we know whether to reveal the
-// positioning pad once the panel is closed.
+// Tracks which panel is currently open (used for the mobile pad behaviour).
 let currentPanelKey = null;
+const isMobileView = () => window.matchMedia('(max-width: 768px)').matches;
+
+function padTargetForKey(key) {
+  if (key === 'logo') return 'logo';
+  if (key === 'thermo' || key === 'embroidery') return 'text';
+  return null;
+}
 
 function openPanel(key) {
   const p = PANELS[key]; if (!p) return;
@@ -3248,17 +3260,30 @@ function openPanel(key) {
   p.bind();
   document.body.classList.add('panel-open');
   currentPanelKey = key;
-  // While a panel is OPEN the pad stays hidden — it would overlap the panel.
-  hidePositioningPad();
+
+  const target = padTargetForKey(key);
+  if (isMobileView()) {
+    // MOBILE: the panel is a full bottom-sheet — keep the pad hidden while open.
+    hidePositioningPad();
+  } else {
+    // DESKTOP: original behaviour — pad shows alongside the open logo/text panel.
+    if (target) showPositioningPad(target);
+    else hidePositioningPad();
+  }
 }
 document.getElementById('close-panel').addEventListener('click', () => {
   document.body.classList.remove('panel-open');
   state.text.mode = null;
-  // Reveal the positioning pad ONLY after closing a logo / text panel,
-  // so the customer can place the decal directly on the slipper view.
-  if (currentPanelKey === 'logo') showPositioningPad('logo');
-  else if (currentPanelKey === 'thermo' || currentPanelKey === 'embroidery') showPositioningPad('text');
-  else hidePositioningPad();
+  const target = padTargetForKey(currentPanelKey);
+  if (isMobileView()) {
+    // MOBILE: reveal the pad AFTER closing a logo/text panel so the
+    // customer can position the decal on the slipper view.
+    if (target) showPositioningPad(target);
+    else hidePositioningPad();
+  } else {
+    // DESKTOP: pad only lives with an open panel — hide it on close.
+    hidePositioningPad();
+  }
   currentPanelKey = null;
 });
 
