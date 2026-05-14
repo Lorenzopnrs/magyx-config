@@ -502,6 +502,10 @@
     transition: all 150ms ease;
   }
   .qty-presets button:hover { border-color: var(--accent); color: var(--accent); }
+  /* Dark mode — quantity panel text */
+  body.dark .qty-input { color: #F2F2EE; }
+  body.dark .qty-presets button { color: #F2F2EE; }
+  body.dark .qty-presets button:hover { color: var(--accent); }
 
   .edition-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .edition-card {
@@ -2454,18 +2458,30 @@ async function captureHeroSnapshot() {
     buildDecalForRightModel(textSlot, state.text.x, state.text.y, state.text.rotation, state.text.scale * 0.85);
   }
 
-  // Camera looks straight down to capture both slippers
-  camera.position.set(0, 9.5, 0.001);
-  camera.lookAt(0, 0.95, 0);
-
-  // Wide landscape aspect for the pair
+  // ── ORTHOGRAPHIC top-down camera ──
+  // A perspective camera distorts a flat object seen from above (the toe
+  // looks bigger than the heel). An orthographic camera gives a perfectly
+  // flat, distortion-free "product photo from directly above" look —
+  // exactly like the reference photo.
   const w = 1600, h = 900;
-  renderer.setSize(w, h, false);
-  camera.aspect = w / h;
-  camera.updateProjectionMatrix();
+  const aspect = w / h;
+  // The pair spans ~6 units wide (Z length 3 + offsets) and ~4 units in X.
+  // Frustum sized to fit the pair with a little padding.
+  const frustumW = 7.2;                       // horizontal world units shown
+  const frustumH = frustumW / aspect;
+  const orthoCam = new THREE.OrthographicCamera(
+    -frustumW / 2, frustumW / 2,
+     frustumH / 2, -frustumH / 2,
+     0.1, 50
+  );
+  orthoCam.position.set(0, 12, 0);
+  orthoCam.up.set(0, 0, -1);                  // so -Z (toe) points UP in the image
+  orthoCam.lookAt(0, 0, 0);
+  orthoCam.updateProjectionMatrix();
 
+  renderer.setSize(w, h, false);
   renderer.setClearColor(0xffffff, 1);
-  renderer.render(scene, camera);
+  renderer.render(scene, orthoCam);
   const dataUrl = renderer.domElement.toDataURL('image/png');
   renderer.setClearColor(0x000000, 0);
 
